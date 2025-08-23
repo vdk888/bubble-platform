@@ -1,5 +1,6 @@
 from typing import Optional
-from pydantic import BaseSettings, validator
+from pydantic_settings import BaseSettings
+from pydantic import field_validator
 import os
 
 class Settings(BaseSettings):
@@ -36,14 +37,13 @@ class Settings(BaseSettings):
     max_conversation_history: int = 50
     ai_response_timeout: int = 30
     
-    @validator('database_url')
+    @field_validator('database_url')
+    @classmethod
     def validate_database_url(cls, v):
         if 'sqlite' in v and os.getenv('ENVIRONMENT') == 'production':
             raise ValueError('SQLite not allowed in production')
         return v
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = {"env_file": ".env", "case_sensitive": False}
 
 settings = Settings()
