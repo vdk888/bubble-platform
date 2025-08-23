@@ -1,5 +1,17 @@
 # 🚀 **BUBBLE PLATFORM MVP - DETAILED SPRINT ROADMAP**
 
+
+**📄 Documentation Structure:**
+- **[spec.md](./spec.md)** - Original product specification and system requirements
+- **[jira.md](./jira.md)** - User stories and acceptance criteria organized by epics
+- **[roadmap.md](./roadmap.md)** - Version roadmap (MVP → V1 → V2) with epic distribution
+- **[plan_overview.md](./plan_overview.md)** - High-level architecture vision and microservices overview  
+- **[plan_phased.md](./plan_phased.md)** - Detailed implementation plan with file structure and development phases
+- **[plan_detailed.md](./plan_detailed.md)** - Complete technical specification with microservices architecture
+- **[dev.md](./dev.md)** - Personal skill roadmap and learning path
+- **[starting_point.md](./starting_point.md)** *(current)* - Foundation setup and first implementation phases
+
+
 ## 🎯 **MVP Success Criteria & Timeline**
 
 **Duration**: 12 weeks (3 months)  
