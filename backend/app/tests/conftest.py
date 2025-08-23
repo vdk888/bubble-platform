@@ -3,7 +3,7 @@ Test configuration and fixtures for Bubble Platform backend tests.
 """
 import pytest
 import asyncio
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
@@ -20,6 +20,14 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
     poolclass=StaticPool  # Use StaticPool for in-memory database
 )
+
+# Enable foreign key constraints for SQLite
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
