@@ -10,7 +10,7 @@ from .core.config import settings
 from .models.base import Base
 from .core.database import engine
 from .core.middleware import SecurityHeadersMiddleware, InputSanitizationMiddleware, AuditLoggingMiddleware, PostgreSQLRLSMiddleware, limiter
-from .api.v1 import health, features, auth, rls_admin
+from .api.v1 import health, features, auth, rls_admin, universes, assets
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -110,6 +110,8 @@ app.include_router(health.router, prefix="/health", tags=["Health Checks"])
 app.include_router(features.router, prefix="/api/v1/features", tags=["Feature Flags"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(rls_admin.router, prefix="/api/v1/admin/rls", tags=["RLS Administration"])
+app.include_router(universes.router, prefix="/api/v1/universes", tags=["Universe Management"])
+app.include_router(assets.router, prefix="/api/v1/assets", tags=["Asset Management"])
 
 @app.get("/", tags=["Root"])
 async def root():
@@ -131,7 +133,7 @@ async def root():
             "features_url": "/api/v1/features"
         },
         "message": "Welcome to Bubble Platform - AI-Native Investment Strategy Automation",
-        "next_actions": ["view_docs", "check_health", "register_user", "login_user"]
+        "next_actions": ["view_docs", "check_health", "register_user", "login_user", "create_universe", "search_assets", "validate_symbols"]
     }
 
 if __name__ == "__main__":

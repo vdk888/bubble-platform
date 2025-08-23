@@ -334,6 +334,44 @@ class AssetValidationService(IAssetValidationService):
                 }
             )
     
+    async def validate_symbols_bulk_mixed_strategy(
+        self,
+        symbols: List[str],
+        force_refresh: bool = False
+    ) -> ServiceResult[Dict[str, ValidationResult]]:
+        """
+        Convenience method for API compatibility.
+        Calls validate_symbols_bulk with mixed strategy and returns symbol->ValidationResult mapping.
+        """
+        # Call the main bulk validation method with mixed strategy
+        result = await self.validate_symbols_bulk(
+            symbols=symbols,
+            strategy=ValidationStrategy.MIXED
+        )
+        
+        if not result.success:
+            return ServiceResult(
+                success=False,
+                error=result.error,
+                message=result.message
+            )
+        
+        # Convert BulkValidationResult to Dict[str, ValidationResult] for API compatibility
+        bulk_data = result.data
+        symbol_results = bulk_data.results
+        
+        return ServiceResult(
+            success=True,
+            data=symbol_results,
+            message=f"Bulk validation completed for {len(symbols)} symbols",
+            metadata={
+                "total_symbols": bulk_data.total_requested,
+                "successful_validations": bulk_data.successful_validations,
+                "processing_time": bulk_data.processing_time,
+                "cache_hits": bulk_data.cache_hits
+            }
+        )
+    
     async def validate_real_time(
         self,
         symbol: str,
@@ -480,7 +518,7 @@ class AssetValidationService(IAssetValidationService):
             cache_key = self._get_cache_key(symbol)
             
             # Convert ValidationResult to dict for JSON serialization
-            result_dict = result.dict()
+            result_dict = result.model_dump()
             if result_dict.get('timestamp'):
                 result_dict['timestamp'] = result_dict['timestamp'].isoformat()
             if result_dict.get('asset_info') and result_dict['asset_info'].get('last_updated'):

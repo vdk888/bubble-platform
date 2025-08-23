@@ -33,7 +33,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bubble_user -d bubble_dev"]
       interval: 10s
@@ -68,6 +67,54 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
+  # Test service following Interface First Design principles
+  test:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://bubble_user:bubble_pass@test_db:5432/bubble_test
+      - REDIS_URL=redis://test_redis:6379
+      - ENVIRONMENT=testing
+      - DEBUG=false
+    depends_on:
+      test_db:
+        condition: service_healthy
+      test_redis:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+    command: python -m pytest app/tests/ -v --tb=short
+    profiles:
+      - test
+
+  # Test database - isolated from development
+  test_db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: bubble_test
+      POSTGRES_USER: bubble_user
+      POSTGRES_PASSWORD: bubble_pass
+    # No additional volumes needed for test database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bubble_user -d bubble_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    profiles:
+      - test
+
+  # Test Redis - isolated from development
+  test_redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    profiles:
+      - test
 
 volumes:
   postgres_data:

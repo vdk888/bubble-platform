@@ -13,6 +13,17 @@ class ServiceResult(BaseModel, Generic[T]):
     message: str = ""
     metadata: Dict[str, Any] = {}
     next_actions: List[str] = []
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert ServiceResult to dictionary for Pydantic V2 compatibility"""
+        return {
+            "success": self.success,
+            "data": self.data,
+            "error": self.error,
+            "message": self.message,
+            "metadata": self.metadata,
+            "next_actions": self.next_actions
+        }
 
 class BaseService(ABC):
     """Base service interface with common patterns"""

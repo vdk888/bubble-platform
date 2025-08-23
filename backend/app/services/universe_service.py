@@ -13,30 +13,7 @@ from ..models.universe import Universe
 from ..models.asset import Asset, UniverseAsset
 from ..models.user import User
 from ..core.database import get_db
-
-
-class ServiceResult:
-    """Standard service response wrapper for AI-friendly responses"""
-    
-    def __init__(self, success: bool, data: Any = None, error: str = None, 
-                 message: str = "", next_actions: List[str] = None, metadata: Dict[str, Any] = None):
-        self.success = success
-        self.data = data
-        self.error = error
-        self.message = message
-        self.next_actions = next_actions or []
-        self.metadata = metadata or {}
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to AI-friendly response format"""
-        return {
-            "success": self.success,
-            "data": self.data,
-            "error": self.error,
-            "message": self.message,
-            "next_actions": self.next_actions,
-            "metadata": self.metadata
-        }
+from .interfaces.base import ServiceResult
 
 
 class BulkResult:
@@ -222,7 +199,7 @@ class UniverseService:
                 message="Failed to retrieve universes"
             )
     
-    async def get_universe_by_id(self, universe_id: str, user_id: str) -> ServiceResult:
+    async def get_universe_by_id_with_user(self, universe_id: str, user_id: str) -> ServiceResult:
         """
         Get specific universe by ID with full asset details.
         Enforces user ownership through RLS.
@@ -675,6 +652,214 @@ class UniverseService:
         except Exception:
             # Don't fail the main operation if turnover calculation fails
             pass
+
+    # API Interface Wrapper Methods
+    # These methods provide simplified interfaces for API endpoints
+    
+    async def get_universe_by_id(self, universe_id: str) -> ServiceResult:
+        """
+        Get universe by ID without requiring user_id parameter.
+        User context is handled by authentication layer and RLS policies.
+        """
+        try:
+            universe = self.db.query(Universe).options(
+                selectinload(Universe.asset_associations).selectinload(UniverseAsset.asset)
+            ).filter(Universe.id == universe_id).first()
+            
+            if not universe:
+                return ServiceResult(
+                    success=False,
+                    error="Universe not found",
+                    message=f"Universe with ID {universe_id} not found or access denied"
+                )
+            
+            return ServiceResult(
+                success=True,
+                data=universe,
+                message=f"Retrieved universe '{universe.name}'",
+                next_actions=[
+                    "add_assets_to_universe",
+                    "create_strategy_from_universe",
+                    "update_universe_details"
+                ],
+                metadata={
+                    "universe_id": universe.id,
+                    "asset_count": len(universe.get_symbols()),
+                    "last_updated": universe.updated_at.isoformat()
+                }
+            )
+            
+        except Exception as e:
+            return ServiceResult(
+                success=False,
+                error=str(e),
+                message="Failed to retrieve universe"
+            )
+    
+    async def update_universe_api(self, universe_id: str, name: str = None, description: str = None) -> ServiceResult:
+        """
+        Update universe with simplified API interface.
+        User context is handled by authentication and RLS.
+        """
+        try:
+            universe = self.db.query(Universe).filter(Universe.id == universe_id).first()
+            
+            if not universe:
+                return ServiceResult(
+                    success=False,
+                    error="Universe not found",
+                    message="Universe not found or access denied"
+                )
+            
+            # Apply updates
+            changes = []
+            if name is not None and name != universe.name:
+                # Check name uniqueness for this user
+                existing = self.db.query(Universe).filter(
+                    and_(
+                        Universe.owner_id == universe.owner_id,
+                        Universe.name == name,
+                        Universe.id != universe_id
+                    )
+                ).first()
+                
+                if existing:
+                    return ServiceResult(
+                        success=False,
+                        error="Universe name already exists",
+                        message=f"Universe name '{name}' already exists"
+                    )
+                
+                universe.name = name
+                changes.append("name")
+            
+            if description is not None and description != universe.description:
+                universe.description = description
+                changes.append("description")
+            
+            if not changes:
+                return ServiceResult(
+                    success=True,
+                    data=universe,
+                    message="No changes requested",
+                    metadata={"changes": []}
+                )
+            
+            universe.updated_at = datetime.now(timezone.utc)
+            
+            self.db.commit()
+            self.db.refresh(universe)
+            
+            return ServiceResult(
+                success=True,
+                data=universe,
+                message=f"Universe updated successfully: {', '.join(changes)}",
+                next_actions=[
+                    "add_assets_to_universe",
+                    "create_strategy_from_universe"
+                ],
+                metadata={
+                    "changes": changes,
+                    "universe_id": universe.id
+                }
+            )
+            
+        except Exception as e:
+            self.db.rollback()
+            return ServiceResult(
+                success=False,
+                error=str(e),
+                message="Failed to update universe"
+            )
+    
+    async def delete_universe_api(self, universe_id: str) -> ServiceResult:
+        """
+        Delete universe with simplified API interface.
+        User context handled by authentication and RLS.
+        """
+        try:
+            universe = self.db.query(Universe).filter(Universe.id == universe_id).first()
+            
+            if not universe:
+                return ServiceResult(
+                    success=False,
+                    error="Universe not found",
+                    message="Universe not found or access denied"
+                )
+            
+            universe_name = universe.name
+            
+            # Delete universe (cascading will handle relationships)
+            self.db.delete(universe)
+            self.db.commit()
+            
+            return ServiceResult(
+                success=True,
+                data={"deleted_universe_id": universe_id},
+                message=f"Universe '{universe_name}' deleted successfully",
+                next_actions=["create_new_universe", "view_remaining_universes"],
+                metadata={
+                    "deleted_universe_id": universe_id,
+                    "cascade_effects": "Associated universe-asset relationships deleted"
+                }
+            )
+            
+        except Exception as e:
+            self.db.rollback()
+            return ServiceResult(
+                success=False,
+                error=str(e),
+                message="Failed to delete universe"
+            )
+    
+    async def add_assets_to_universe_api(self, universe_id: str, asset_symbols: List[str]) -> ServiceResult:
+        """
+        Add assets to universe with simplified API interface.
+        """
+        # This delegates to the existing detailed method but extracts user_id from universe
+        try:
+            universe = self.db.query(Universe).filter(Universe.id == universe_id).first()
+            if not universe:
+                return ServiceResult(
+                    success=False,
+                    error="Universe not found",
+                    message="Universe not found or access denied"
+                )
+            
+            # Call the existing detailed method with user_id
+            result = await self.add_assets_to_universe(universe_id, asset_symbols, universe.owner_id)
+            return result
+            
+        except Exception as e:
+            return ServiceResult(
+                success=False,
+                error=str(e),
+                message="Failed to add assets to universe"
+            )
+    
+    async def remove_assets_from_universe_api(self, universe_id: str, asset_symbols: List[str]) -> ServiceResult:
+        """
+        Remove assets from universe with simplified API interface.
+        """
+        try:
+            universe = self.db.query(Universe).filter(Universe.id == universe_id).first()
+            if not universe:
+                return ServiceResult(
+                    success=False,
+                    error="Universe not found",
+                    message="Universe not found or access denied"
+                )
+            
+            # Call the existing detailed method with user_id
+            result = await self.remove_assets_from_universe(universe_id, asset_symbols, universe.owner_id)
+            return result
+            
+        except Exception as e:
+            return ServiceResult(
+                success=False,
+                error=str(e),
+                message="Failed to remove assets from universe"
+            )
 
 
 # Factory function for dependency injection

@@ -148,7 +148,7 @@ class TestUniverseServiceCRUD:
         universe_id = create_result.data["id"]
         
         # Get universe by ID
-        result = await service.get_universe_by_id(universe_id, test_user.id)
+        result = await service.get_universe_by_id_with_user(universe_id, test_user.id)
         
         assert result.success is True
         assert result.data["id"] == universe_id
@@ -159,7 +159,7 @@ class TestUniverseServiceCRUD:
     @pytest.mark.asyncio
     async def test_get_universe_by_id_not_found(self, service: UniverseService, test_user: User):
         """Test getting non-existent universe"""
-        result = await service.get_universe_by_id("invalid-universe-id", test_user.id)
+        result = await service.get_universe_by_id_with_user("invalid-universe-id", test_user.id)
         
         assert result.success is False
         assert result.error == "Universe not found"
@@ -221,7 +221,7 @@ class TestUniverseServiceCRUD:
         assert "create_new_universe" in result.next_actions
         
         # Verify universe is gone
-        get_result = await service.get_universe_by_id(universe_id, test_user.id)
+        get_result = await service.get_universe_by_id_with_user(universe_id, test_user.id)
         assert get_result.success is False
 
 
@@ -315,7 +315,7 @@ class TestUniverseServiceAssetManagement:
         assert len(result.data["successful"]) == 2
         
         # Verify universe still has remaining asset
-        universe_result = await service.get_universe_by_id(test_universe, test_user.id)
+        universe_result = await service.get_universe_by_id_with_user(test_universe, test_user.id)
         assert universe_result.data["asset_count"] == 1
     
     @pytest.mark.asyncio
@@ -412,11 +412,11 @@ class TestUniverseServiceMultiTenant:
         universe_id = create_result.data["id"]
         
         # User1 can access their universe
-        user1_result = await service.get_universe_by_id(universe_id, user1.id)
+        user1_result = await service.get_universe_by_id_with_user(universe_id, user1.id)
         assert user1_result.success is True
         
         # User2 cannot access User1's universe
-        user2_result = await service.get_universe_by_id(universe_id, user2.id)
+        user2_result = await service.get_universe_by_id_with_user(universe_id, user2.id)
         assert user2_result.success is False
         assert user2_result.error == "Universe not found"
     
@@ -438,7 +438,7 @@ class TestUniverseServiceMultiTenant:
         assert user2_update.error == "Universe not found"
         
         # Verify universe remains unchanged
-        user1_get = await service.get_universe_by_id(universe_id, user1.id)
+        user1_get = await service.get_universe_by_id_with_user(universe_id, user1.id)
         assert user1_get.data["name"] == "User1 Universe"
     
     @pytest.mark.asyncio
@@ -455,7 +455,7 @@ class TestUniverseServiceMultiTenant:
         assert user2_delete.error == "Universe not found"
         
         # Verify universe still exists
-        user1_get = await service.get_universe_by_id(universe_id, user1.id)
+        user1_get = await service.get_universe_by_id_with_user(universe_id, user1.id)
         assert user1_get.success is True
     
     @pytest.mark.asyncio
@@ -552,7 +552,7 @@ class TestUniverseServiceAIFriendlyResponses:
         
         # Get universe - should have comprehensive metadata
         universe_id = result.data["id"]
-        get_result = await service.get_universe_by_id(universe_id, test_user.id)
+        get_result = await service.get_universe_by_id_with_user(universe_id, test_user.id)
         
         assert "universe_id" in get_result.metadata
         assert "asset_count" in get_result.metadata

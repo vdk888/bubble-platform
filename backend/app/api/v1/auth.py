@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime, timezone
 import logging
@@ -32,14 +32,16 @@ class UserRegistration(BaseModel):
     full_name: Optional[str] = None
     subscription_tier: Optional[SubscriptionTier] = SubscriptionTier.FREE
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password_strength(cls, v):
         is_valid, strength, feedback = auth_service.validate_password_strength(v)
         if not is_valid:
             raise ValueError(f"Password validation failed: {'; '.join(feedback)}")
         return v
     
-    @validator('full_name')
+    @field_validator('full_name')
+    @classmethod
     def sanitize_full_name(cls, v):
         if v is None:
             return v

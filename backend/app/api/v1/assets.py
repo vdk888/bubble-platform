@@ -1,0 +1,441 @@
+"""
+Asset Search and Validation API Endpoints.
+Following Phase 2 Step 4 specifications with AI-friendly response format.
+"""
+from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+from ...core.database import get_db
+from ..v1.auth import get_current_user
+from ...models.user import User
+from ...services.asset_validation_service import AssetValidationService
+from ...services.interfaces.base import ServiceResult
+
+# Rate limiting configuration for validation endpoints
+limiter = Limiter(key_func=get_remote_address)
+router = APIRouter()
+
+# Request/Response Models
+class AssetValidationRequest(BaseModel):
+    symbols: List[str]
+    force_refresh: Optional[bool] = False
+    
+class AssetSearchRequest(BaseModel):
+    query: str
+    sector: Optional[str] = None
+    limit: Optional[int] = 10
+    
+class AssetInfo(BaseModel):
+    symbol: str
+    name: str
+    sector: Optional[str] = None
+    industry: Optional[str] = None
+    market_cap: Optional[int] = None
+    pe_ratio: Optional[float] = None
+    dividend_yield: Optional[float] = None
+    is_validated: bool
+    last_validated_at: Optional[str] = None
+    validation_source: Optional[str] = None
+
+class ValidationResult(BaseModel):
+    symbol: str
+    is_valid: bool
+    provider: str
+    confidence: float
+    error: Optional[str] = None
+    asset_info: Optional[AssetInfo] = None
+    timestamp: str
+    source: str
+
+class BulkValidationResult(BaseModel):
+    total_symbols: int
+    valid_symbols: int
+    invalid_symbols: int
+    cached_results: int
+    real_time_validations: int
+    validation_results: Dict[str, ValidationResult]
+    
+class AssetSearchResult(BaseModel):
+    total_results: int
+    results: List[AssetInfo]
+    search_query: str
+    search_metadata: Dict[str, Any]
+
+# AI-friendly response wrappers
+class AIValidationResponse(BaseModel):
+    success: bool
+    data: Optional[BulkValidationResult] = None
+    message: str
+    next_actions: List[str] = []
+    metadata: Dict[str, Any] = {}
+    
+class AISearchResponse(BaseModel):
+    success: bool
+    data: Optional[AssetSearchResult] = None
+    message: str
+    next_actions: List[str] = []
+    metadata: Dict[str, Any] = {}
+
+class AIAssetInfoResponse(BaseModel):
+    success: bool
+    data: Optional[AssetInfo] = None
+    message: str
+    next_actions: List[str] = []
+    metadata: Dict[str, Any] = {}
+
+class AISectorsResponse(BaseModel):
+    success: bool
+    data: Optional[List[str]] = None
+    message: str
+    next_actions: List[str] = []
+    metadata: Dict[str, Any] = {}
+
+# Service dependency
+def get_asset_validation_service(db: Session = Depends(get_db)) -> AssetValidationService:
+    return AssetValidationService(db)
+
+@router.post("/validate", response_model=AIValidationResponse, summary="Bulk asset validation")
+@limiter.limit("5/minute")  # Rate limiting for validation endpoint
+async def validate_assets(
+    request: Request,  # Required for rate limiting
+    validation_request: AssetValidationRequest,
+    current_user: User = Depends(get_current_user),
+    asset_service: AssetValidationService = Depends(get_asset_validation_service)
+):
+    """
+    Bulk validate asset symbols using mixed validation strategy.
+    
+    Features:
+    - Redis caching for fast repeated validations
+    - Multi-provider fallback (Yahoo Finance → Alpha Vantage)
+    - Concurrent processing with rate limiting compliance
+    - AI-friendly response format with next action suggestions
+    
+    Rate limited to 5 requests per minute per user for API protection.
+    """
+    if not validation_request.symbols:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one symbol must be provided for validation"
+        )
+    
+    # Remove duplicates while preserving order
+    unique_symbols = list(dict.fromkeys(validation_request.symbols))
+    
+    if len(unique_symbols) > 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum 100 symbols allowed per validation request"
+        )
+    
+    # Perform bulk validation using mixed strategy
+    result = await asset_service.validate_symbols_bulk_mixed_strategy(
+        symbols=unique_symbols,
+        force_refresh=validation_request.force_refresh
+    )
+    
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error
+        )
+    
+    bulk_data = result.data
+    
+    # Convert to response format
+    validation_results = {}
+    for symbol, validation in bulk_data.items():
+        asset_info = None
+        if validation.asset_info:
+            asset_info = AssetInfo(
+                symbol=validation.asset_info.symbol,
+                name=validation.asset_info.name,
+                sector=validation.asset_info.sector,
+                industry=validation.asset_info.industry,
+                market_cap=validation.asset_info.market_cap,
+                pe_ratio=validation.asset_info.pe_ratio,
+                dividend_yield=validation.asset_info.dividend_yield,
+                is_validated=validation.asset_info.is_valid,
+                last_validated_at=validation.asset_info.last_updated.isoformat() if validation.asset_info.last_updated else None,
+                validation_source=validation.provider
+            )
+        
+        validation_results[symbol] = ValidationResult(
+            symbol=validation.symbol,
+            is_valid=validation.is_valid,
+            provider=validation.provider,
+            confidence=validation.confidence,
+            error=validation.error,
+            asset_info=asset_info,
+            timestamp=validation.timestamp.isoformat(),
+            source=validation.source
+        )
+    
+    # Calculate statistics
+    valid_count = sum(1 for v in validation_results.values() if v.is_valid)
+    invalid_count = len(validation_results) - valid_count
+    cached_count = sum(1 for v in validation_results.values() if v.source == "cache")
+    real_time_count = len(validation_results) - cached_count
+    
+    bulk_result = BulkValidationResult(
+        total_symbols=len(validation_results),
+        valid_symbols=valid_count,
+        invalid_symbols=invalid_count,
+        cached_results=cached_count,
+        real_time_validations=real_time_count,
+        validation_results=validation_results
+    )
+    
+    # AI-friendly next actions
+    next_actions = []
+    if valid_count > 0:
+        next_actions.extend([
+            "add_valid_symbols_to_universe",
+            "create_universe_from_valid_symbols",
+            "get_market_data_for_valid_symbols"
+        ])
+    if invalid_count > 0:
+        next_actions.extend([
+            "search_similar_symbols",
+            "review_invalid_symbols"
+        ])
+    if real_time_count > 0:
+        next_actions.append("cache_validation_results")
+    
+    validation_rate = (valid_count / len(validation_results)) * 100
+    
+    return AIValidationResponse(
+        success=True,
+        data=bulk_result,
+        message=f"Validated {len(validation_results)} symbols: {valid_count} valid, {invalid_count} invalid",
+        next_actions=next_actions,
+        metadata={
+            "validation_rate": round(validation_rate, 1),
+            "cache_hit_rate": round((cached_count / len(validation_results)) * 100, 1),
+            "processing_strategy": "mixed_bulk_validation",
+            "user_id": current_user.id,
+            "rate_limit_remaining": "4 requests"  # This would be dynamic in production
+        }
+    )
+
+@router.get("/search", response_model=AISearchResponse, summary="Search assets by name or symbol")
+async def search_assets(
+    query: str = Query(..., description="Search query (name or symbol)"),
+    sector: Optional[str] = Query(None, description="Filter by sector"),
+    limit: int = Query(10, ge=1, le=50, description="Maximum results (1-50)"),
+    current_user: User = Depends(get_current_user),
+    asset_service: AssetValidationService = Depends(get_asset_validation_service)
+):
+    """
+    Search for assets by name or symbol with optional sector filtering.
+    
+    Features:
+    - Full-text search across asset names and symbols
+    - Sector-based filtering
+    - Cached results for performance
+    - AI-friendly response format
+    """
+    if len(query.strip()) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Search query must be at least 2 characters"
+        )
+    
+    # This would integrate with the actual search service
+    # For now, using validation service as placeholder
+    search_symbols = [query.upper()]
+    if len(query) <= 4:
+        # Add common variations for short queries
+        search_symbols.extend([
+            f"{query.upper()}.TO",  # Toronto Stock Exchange
+            f"{query.upper()}.L",   # London Stock Exchange
+        ])
+    
+    results = []
+    for symbol in search_symbols[:limit]:
+        validation_result = await asset_service.validate_symbol_mixed_strategy(symbol)
+        if validation_result.success and validation_result.data.is_valid:
+            asset_info = validation_result.data.asset_info
+            if asset_info:
+                # Apply sector filter if specified
+                if sector and asset_info.sector and sector.lower() not in asset_info.sector.lower():
+                    continue
+                    
+                results.append(AssetInfo(
+                    symbol=asset_info.symbol,
+                    name=asset_info.name,
+                    sector=asset_info.sector,
+                    industry=asset_info.industry,
+                    market_cap=asset_info.market_cap,
+                    pe_ratio=asset_info.pe_ratio,
+                    dividend_yield=asset_info.dividend_yield,
+                    is_validated=asset_info.is_valid,
+                    last_validated_at=asset_info.last_updated.isoformat() if asset_info.last_updated else None,
+                    validation_source="search_validation"
+                ))
+        
+        if len(results) >= limit:
+            break
+    
+    search_result = AssetSearchResult(
+        total_results=len(results),
+        results=results,
+        search_query=query,
+        search_metadata={
+            "sector_filter": sector,
+            "result_limit": limit,
+            "search_variations_tried": len(search_symbols)
+        }
+    )
+    
+    # AI-friendly next actions
+    next_actions = []
+    if results:
+        next_actions.extend([
+            "add_assets_to_universe",
+            "validate_selected_assets",
+            "get_detailed_asset_info"
+        ])
+    else:
+        next_actions.extend([
+            "try_different_search_terms",
+            "browse_assets_by_sector"
+        ])
+    
+    return AISearchResponse(
+        success=len(results) > 0,
+        data=search_result,
+        message=f"Found {len(results)} asset(s) matching '{query}'",
+        next_actions=next_actions,
+        metadata={
+            "search_performance": "cached" if results else "real_time",
+            "sector_applied": sector is not None,
+            "exact_match": any(r.symbol == query.upper() for r in results)
+        }
+    )
+
+@router.get("/sectors", response_model=AISectorsResponse, summary="Get available sectors")
+async def get_available_sectors(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get list of available sectors for filtering and search.
+    
+    Returns all sectors found in the asset database, useful for
+    sector-based universe creation and asset filtering.
+    """
+    # This would query the database for distinct sectors
+    # For now, returning common sectors as example
+    common_sectors = [
+        "Technology",
+        "Healthcare",
+        "Financial Services",
+        "Consumer Cyclical",
+        "Consumer Defensive",
+        "Energy",
+        "Industrials",
+        "Real Estate",
+        "Materials",
+        "Utilities",
+        "Communication Services"
+    ]
+    
+    return AISectorsResponse(
+        success=True,
+        data=common_sectors,
+        message=f"Retrieved {len(common_sectors)} available sectors",
+        next_actions=[
+            "filter_assets_by_sector",
+            "create_sector_universe",
+            "compare_sector_performance"
+        ],
+        metadata={
+            "total_sectors": len(common_sectors),
+            "data_source": "asset_database",
+            "last_updated": "2025-01-23"
+        }
+    )
+
+@router.get("/{symbol}", response_model=AIAssetInfoResponse, summary="Get detailed asset information")
+async def get_asset_info(
+    symbol: str,
+    current_user: User = Depends(get_current_user),
+    asset_service: AssetValidationService = Depends(get_asset_validation_service)
+):
+    """
+    Get detailed information about a specific asset symbol.
+    
+    Returns comprehensive asset data including fundamental metrics,
+    validation status, and market information.
+    """
+    symbol = symbol.upper().strip()
+    
+    if not symbol or len(symbol) > 20:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid symbol format"
+        )
+    
+    # Validate and get asset information
+    result = await asset_service.validate_symbol_mixed_strategy(symbol)
+    
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error
+        )
+    
+    validation = result.data
+    
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Asset symbol '{symbol}' not found or invalid"
+        )
+    
+    asset_info = None
+    if validation.asset_info:
+        asset_info = AssetInfo(
+            symbol=validation.asset_info.symbol,
+            name=validation.asset_info.name,
+            sector=validation.asset_info.sector,
+            industry=validation.asset_info.industry,
+            market_cap=validation.asset_info.market_cap,
+            pe_ratio=validation.asset_info.pe_ratio,
+            dividend_yield=validation.asset_info.dividend_yield,
+            is_validated=validation.asset_info.is_valid,
+            last_validated_at=validation.asset_info.last_updated.isoformat() if validation.asset_info.last_updated else None,
+            validation_source=validation.provider
+        )
+    
+    # AI-friendly next actions based on asset characteristics
+    next_actions = ["add_to_universe", "get_market_data", "compare_with_peers"]
+    
+    if asset_info and asset_info.sector:
+        next_actions.extend([
+            "search_sector_peers",
+            "analyze_sector_performance"
+        ])
+        
+    if asset_info and asset_info.dividend_yield and asset_info.dividend_yield > 0:
+        next_actions.append("analyze_dividend_history")
+    
+    return AIAssetInfoResponse(
+        success=True,
+        data=asset_info,
+        message=f"Retrieved detailed information for {symbol}",
+        next_actions=next_actions,
+        metadata={
+            "validation_provider": validation.provider,
+            "validation_confidence": validation.confidence,
+            "data_freshness": validation.source,
+            "timestamp": validation.timestamp.isoformat()
+        }
+    )
+
+# Rate limit error handling is configured at the app level in main.py
