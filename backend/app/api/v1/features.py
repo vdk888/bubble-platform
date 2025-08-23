@@ -7,11 +7,16 @@ router = APIRouter()
 
 @router.get("/")
 async def get_feature_flags():
-    """Get current feature flag status"""
+    """Get current feature flag status with standardized response format"""
     return {
-        "features": FeatureFlags.get_all_flags(),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "environment": os.getenv("ENVIRONMENT", "development")
+        "success": True,
+        "data": {
+            "features": FeatureFlags.get_all_flags(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "environment": os.getenv("ENVIRONMENT", "development")
+        },
+        "message": "Feature flags retrieved successfully",
+        "next_actions": ["check_enabled_features", "view_feature_info", "configure_features"]
     }
 
 @router.get("/enabled")

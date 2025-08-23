@@ -42,17 +42,21 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if settings.environment == "production":
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         
-        # Content Security Policy
+        # Enhanced Content Security Policy for production security
         csp = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-            "img-src 'self' data: https:; "
-            "connect-src 'self' https://api.anthropic.com; "
-            "font-src 'self' https://cdn.jsdelivr.net; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+            "img-src 'self' data: https: blob:; "
+            "connect-src 'self' https://api.anthropic.com wss://localhost:8000; "
+            "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
-            "form-action 'self'"
+            "form-action 'self'; "
+            "object-src 'none'; "
+            "media-src 'self'; "
+            "worker-src 'self'; "
+            "manifest-src 'self'"
         )
         response.headers["Content-Security-Policy"] = csp
         

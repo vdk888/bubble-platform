@@ -113,20 +113,25 @@ app.include_router(rls_admin.router, prefix="/api/v1/admin/rls", tags=["RLS Admi
 
 @app.get("/", tags=["Root"])
 async def root():
-    """Root endpoint with application information"""
+    """Root endpoint with application information and standardized response format"""
     from .core.feature_flags import FeatureFlags
     
     return {
-        "message": "Bubble Platform API",
-        "version": "1.0.0",
-        "environment": settings.environment,
-        "debug": settings.debug,
-        "features_enabled": len(FeatureFlags.get_enabled_flags()),
-        "docs_url": "/docs",
-        "health_url": "/health",
-        "ready_url": "/health/ready",
-        "metrics_url": "/health/metrics",
-        "features_url": "/api/v1/features"
+        "success": True,
+        "data": {
+            "name": "Bubble Platform API",
+            "version": "1.0.0",
+            "environment": settings.environment,
+            "debug": settings.debug,
+            "features_enabled": len(FeatureFlags.get_enabled_flags()),
+            "docs_url": "/docs",
+            "health_url": "/health",
+            "ready_url": "/health/ready",
+            "metrics_url": "/health/metrics",
+            "features_url": "/api/v1/features"
+        },
+        "message": "Welcome to Bubble Platform - AI-Native Investment Strategy Automation",
+        "next_actions": ["view_docs", "check_health", "register_user", "login_user"]
     }
 
 if __name__ == "__main__":

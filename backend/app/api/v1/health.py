@@ -50,12 +50,17 @@ async def check_claude_api_status() -> bool:
 
 @router.get("/")
 async def health_check():
-    """Basic health check endpoint"""
+    """Basic health check endpoint with standardized response format"""
     return {
-        "status": "healthy",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "version": "1.0.0",
-        "environment": settings.environment
+        "success": True,
+        "data": {
+            "status": "healthy",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "version": "1.0.0",
+            "environment": settings.environment
+        },
+        "message": "Health check successful",
+        "next_actions": ["check_ready", "view_metrics", "view_docs"]
     }
 
 @router.get("/ready")
@@ -81,9 +86,14 @@ async def readiness_check():
     checks["claude_api"] = {"ready": claude_ready, "service": "Claude API", "optional": True}
     
     response_data = {
-        "ready": overall_ready,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "checks": checks
+        "success": overall_ready,
+        "data": {
+            "ready": overall_ready,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "checks": checks
+        },
+        "message": "Readiness check completed" if overall_ready else "System not ready",
+        "next_actions": ["check_health", "view_metrics"] if overall_ready else ["check_logs", "retry_later"]
     }
     
     # Return 503 if not ready (for load balancer health checks)
@@ -131,7 +141,12 @@ async def metrics_endpoint():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
     
-    return metrics_data
+    return {
+        "success": True,
+        "data": metrics_data,
+        "message": "Metrics retrieved successfully",
+        "next_actions": ["view_health", "check_ready", "analyze_performance"]
+    }
 
 @router.get("/detailed")
 async def detailed_health_check():
