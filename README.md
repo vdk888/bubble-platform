@@ -92,6 +92,13 @@ curl http://localhost:8000/api/v1/features/
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for complete VS Code guide.
 
+## 📚 Documentation
+
+**Implementation Guides:**
+- **[AI Agent Tool Calling](docs/AI_AGENT_TOOL_CALLING.md)** - Comprehensive Sprint 5 AI implementation patterns
+- **[Frontend Sprint 1 Tracking](docs/FRONTEND_SPRINT1_TRACKING.md)** - Frontend implementation roadmap and status
+- **[Architecture Decisions](docs/decisions/)** - ADRs and technical decision documentation
+
 ## 📊 API Endpoints (Sprint 0)
 
 ### **Health & Monitoring**
@@ -174,11 +181,11 @@ pytest app/tests/test_health.py -v
 
 ## 🗓️ Roadmap
 
-### **Sprint 1 (Week 2): Authentication & User Management**
-- JWT authentication with refresh tokens
-- User registration/login endpoints
-- Row-level security for multi-tenancy
-- Frontend login/register forms
+### **Sprint 1 (Week 2): Authentication & User Management** ✅ **Backend Complete**
+- ✅ JWT authentication with refresh tokens
+- ✅ User registration/login endpoints  
+- ✅ Row-level security for multi-tenancy
+- ⚠️ Frontend login/register forms (see [Frontend Tracking](docs/FRONTEND_SPRINT1_TRACKING.md))
 
 ### **Sprint 2 (Week 3): Universe Management**
 - Asset search and validation

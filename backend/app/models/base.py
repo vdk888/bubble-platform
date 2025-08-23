@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, DateTime, Boolean
-from sqlalchemy.ext.declarative import declarative_base, declared_attr
+from sqlalchemy.orm import declarative_base, declared_attr
 from datetime import datetime, timezone
 import uuid
 
