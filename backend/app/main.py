@@ -1,12 +1,16 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from .core.config import settings
 from .models.base import Base
 from .core.database import engine
-from .api.v1 import health, features
+from .core.middleware import SecurityHeadersMiddleware, InputSanitizationMiddleware, AuditLoggingMiddleware, PostgreSQLRLSMiddleware, limiter
+from .api.v1 import health, features, auth, rls_admin
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,6 +23,24 @@ async def lifespan(app: FastAPI):
     if settings.environment == "development":
         Base.metadata.create_all(bind=engine)
         print("Database tables created")
+    
+    # Setup PostgreSQL RLS policies for multi-tenant isolation
+    if "postgresql" in settings.database_url.lower():
+        from .core.rls_policies import setup_postgresql_rls
+        from .core.database import SessionLocal
+        
+        try:
+            db_session = SessionLocal()
+            rls_success = setup_postgresql_rls(db_session)
+            if rls_success:
+                print("✅ PostgreSQL RLS policies configured - multi-tenant isolation active")
+            else:
+                print("⚠️ PostgreSQL RLS setup failed - check logs")
+            db_session.close()
+        except Exception as e:
+            print(f"⚠️ RLS setup error (non-critical): {e}")
+    else:
+        print("ℹ️ SQLite database - RLS policies not applicable")
     
     yield
     
@@ -64,6 +86,12 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add security middleware (order matters - RLS first, then others)
+app.add_middleware(PostgreSQLRLSMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(AuditLoggingMiddleware)
+app.add_middleware(InputSanitizationMiddleware)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -73,9 +101,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Include routers
 app.include_router(health.router, prefix="/health", tags=["Health Checks"])
 app.include_router(features.router, prefix="/api/v1/features", tags=["Feature Flags"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(rls_admin.router, prefix="/api/v1/admin/rls", tags=["RLS Administration"])
 
 @app.get("/", tags=["Root"])
 async def root():

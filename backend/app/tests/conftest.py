@@ -5,19 +5,23 @@ import pytest
 import asyncio
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 from app.main import app
 from app.core.database import get_db
 from app.models.base import Base
 from app.core.config import settings
 
-# Test database URL
-SQLALCHEMY_DATABASE_URL = "sqlite:///./bubble_test.db"
+# Test database URL - use memory database to avoid I/O issues
+SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL, 
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool  # Use StaticPool for in-memory database
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -37,16 +41,36 @@ def db_session():
         db.close()
         Base.metadata.drop_all(bind=engine)
 
-@pytest.fixture(scope="function")
-def client(db_session):
+@pytest.fixture(scope="function")  
+def client():
     """Create a test client with database dependency override."""
+    import os
+    
+    # Prevent FastAPI startup from creating main database tables
+    original_env = os.environ.get("ENVIRONMENT")
+    os.environ["ENVIRONMENT"] = "testing"
+    
+    # Create tables in our test database
+    Base.metadata.create_all(bind=engine)
+    
     def override_get_db():
         try:
-            yield db_session
+            db = TestingSessionLocal()
+            yield db
         finally:
-            db_session.close()
+            db.close()
     
     app.dependency_overrides[get_db] = override_get_db
+    
     with TestClient(app) as test_client:
         yield test_client
+    
+    # Cleanup
     app.dependency_overrides.clear()
+    Base.metadata.drop_all(bind=engine)
+    
+    # Restore original environment
+    if original_env:
+        os.environ["ENVIRONMENT"] = original_env
+    elif "ENVIRONMENT" in os.environ:
+        del os.environ["ENVIRONMENT"]
