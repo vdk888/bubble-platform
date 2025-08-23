@@ -44,6 +44,6 @@ class Settings(BaseSettings):
             raise ValueError('SQLite not allowed in production')
         return v
     
-    model_config = {"env_file": ".env", "case_sensitive": False}
+    model_config = {"env_file": ".env", "case_sensitive": False, "extra": "ignore"}
 
 settings = Settings()
