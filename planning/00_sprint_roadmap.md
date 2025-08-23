@@ -285,44 +285,121 @@ class UniverseService:
 
 ## **SPRINT 1: USER MANAGEMENT & AUTHENTICATION** (Week 2)
 
+### **🔑 Critical Architectural Decisions**
+
+#### **Decision 1: Authentication Strategy**
+**Choice**: **Advanced JWT with Redis backing** (recommended for financial compliance)
+- **Rationale**: Following 7_risk_system.md - financial data requires audit trails, multi-tenant isolation, and session invalidation capability
+- **Implementation**: JWT tokens with multi-tenant claims + Redis session store for critical operations
+- **Alternative considered**: Simple JWT (insufficient for financial compliance)
+
+#### **Decision 2: Multi-Tenant Isolation**
+**Choice**: **PostgreSQL Row-Level Security (RLS) policies** (aligns with ADR-001 monolithic approach)
+- **Rationale**: Database-level isolation provides bulletproof data security for SaaS model
+- **Implementation**: RLS policies on all tables with `user_id` filtering
+- **Alternative considered**: Application-level filtering (less secure, prone to bugs)
+
+#### **Decision 3: Rate Limiting Architecture**
+**Choice**: **FastAPI middleware** for MVP, **Redis-based** for V1 microservices
+- **Rationale**: Simple and effective for monolithic architecture, clean migration path
+- **Limits**: Auth endpoints (10/min), General APIs (100/min), Financial ops (5/min)
+- **Future evolution**: Distributed rate limiting when extracting to microservices
+
+#### **Decision 4: API Response Format**
+**Choice**: **AI-friendly structured responses** (supports tool calling architecture from 1_spec.md)
+- **Rationale**: All APIs must support both human UI and AI agent consumption
+- **Format**: JSON with `success`, `data`, `message`, `next_actions` fields
+- **Example**: `{"success": true, "user": {...}, "next_actions": ["create_first_universe"]}`
+
 ### **Core Authentication Service**
 #### **Monday-Tuesday Deliverables**:
-- JWT-based authentication with refresh tokens
-- User registration/login endpoints
-- Password strength validation (12+ chars, complexity)
-- Rate limiting on authentication endpoints
+- **Advanced JWT implementation** with multi-tenant claims and Redis session backing
+- User registration/login endpoints with **AI-friendly response format**
+- **Enhanced password validation** (12+ chars, complexity scoring, passkey preparation)
+- **Tiered rate limiting** (auth: 10/min, general: 100/min, financial: 5/min)
 
 #### **API Endpoints Implemented**:
 ```python
-POST /api/v1/auth/register      # User registration
-POST /api/v1/auth/login         # Authentication  
-POST /api/v1/auth/refresh       # Token refresh
-GET  /api/v1/auth/me           # Current user profile
-POST /api/v1/auth/logout       # Session termination
+POST /api/v1/auth/register      # User registration with subscription tier support
+POST /api/v1/auth/login         # Authentication with multi-tenant JWT claims
+POST /api/v1/auth/refresh       # Token refresh with rotation for security
+GET  /api/v1/auth/me           # Current user profile with AI-friendly format
+POST /api/v1/auth/logout       # Session termination with Redis cleanup
 ```
 
-### **Security Layer**
+### **Security Layer & Multi-Tenant Foundation**
 #### **Wednesday-Thursday Deliverables**:
-- Row-level security (RLS) policies for multi-tenant isolation
-- API request validation middleware
-- Security headers middleware
-- Input sanitization for all endpoints
+- **PostgreSQL RLS policies** for bulletproof multi-tenant data isolation
+- **API request validation middleware** with comprehensive input sanitization
+- **Security headers middleware** (CORS, CSP, HSTS for production readiness)
+- **Audit logging infrastructure** for all authentication events (financial compliance)
 
-#### **Frontend Authentication**
-#### **Friday Deliverables**:
-- Login/Register forms with validation
-- JWT token management (storage, refresh, expiry)
-- Protected route components
-- Basic user profile page
+#### **RLS Implementation Example**:
+```sql
+-- Multi-tenant isolation at database level
+CREATE POLICY user_isolation ON users FOR ALL TO authenticated_users 
+    USING (id = current_setting('app.current_user_id')::uuid);
 
-#### **Testing & Validation**:
-```bash
-# Security validation tests:
-- User A cannot access User B's data
-- JWT tokens expire and refresh correctly
-- Rate limiting prevents brute force attacks
-- All inputs properly sanitized
+CREATE POLICY universe_isolation ON universes FOR ALL TO authenticated_users 
+    USING (user_id = current_setting('app.current_user_id')::uuid);
+
+-- Extends to all user-owned resources for complete data isolation
 ```
+
+### **Frontend Authentication & Interface Preparation**
+#### **Friday Deliverables**:
+- **Login/Register forms** with enhanced validation and user experience
+- **JWT token management** (secure storage, automatic refresh, expiry handling)
+- **Protected route components** with role-based access preparation
+- **Basic user profile page** with subscription tier display
+
+#### **AI Integration Preparation**:
+```typescript
+// Frontend services designed for both UI and AI agent consumption
+interface AuthResponse {
+  success: boolean;
+  user?: UserProfile;
+  message: string;
+  next_actions?: string[];  // Guides both users and AI agent
+  subscription_tier?: 'basic' | 'premium' | 'enterprise';
+}
+```
+
+### **Testing & Validation**
+#### **Comprehensive Security Validation**:
+```bash
+# Multi-tenant isolation validation:
+- User A cannot access User B's universes, strategies, or portfolios
+- Database queries automatically filter by authenticated user
+- API endpoints enforce user context in all operations
+
+# JWT security validation:
+- Tokens expire and refresh correctly with rotation
+- Multi-tenant claims properly embedded and validated
+- Redis session cleanup on logout
+
+# Rate limiting validation:
+- Authentication endpoints prevent brute force (10 req/min)
+- General API endpoints handle normal usage (100 req/min)  
+- Financial operations properly restricted (5 req/min)
+
+# Financial compliance validation:
+- All authentication events logged with timestamps
+- Audit trail maintained for user sessions and token usage
+- Input sanitization prevents injection attacks
+```
+
+### **Long-term Architecture Alignment**
+#### **Microservices Migration Preparation**:
+- **Clean service interfaces**: AuthService designed for future extraction
+- **Database schema**: Multi-tenant ready with proper foreign key relationships
+- **API contracts**: RESTful design consistent with /api/v1/* convention
+- **AI tool calling**: Authentication APIs return structured data for AI consumption
+
+#### **V1/V2 Evolution Path**:
+- **V1**: Add distributed rate limiting, advanced session analytics
+- **V2**: Extract to dedicated Auth microservice with OAuth2, 2FA, fraud detection
+- **Enterprise**: Full compliance suite with SOC2, audit trails, advanced security
 
 ---
 
