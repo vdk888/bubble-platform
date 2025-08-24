@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import UniverseDashboard from './components/universe/UniverseDashboard';
 import './index.css';
+import './devAuth.js'; // Development authentication
 
 function App() {
   return (

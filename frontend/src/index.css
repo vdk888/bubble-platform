@@ -213,8 +213,25 @@ body {
   border: 0;
 }
 
-/* Relative positioning */
+/* Positioning */
 .relative { position: relative; }
+.fixed { position: fixed; }
+.absolute { position: absolute; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.z-50 { z-index: 50; }
+
+/* Modal styles */
+.overflow-y-auto { overflow-y: auto; }
+.min-h-screen { min-height: 100vh; }
+.opacity-75 { opacity: 0.75; }
+.transform { transform: translate(0, 0); }
+.transition-opacity { transition: opacity 0.15s ease-in-out; }
+.transition-all { transition: all 0.15s ease-in-out; }
+.align-bottom { vertical-align: bottom; }
+.align-middle { vertical-align: middle; }
+.inline-block { display: inline-block; }
+.leading-6 { line-height: 1.5rem; }
+.shadow-xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
 
 /* Component styles */
 .btn-primary {
