@@ -19,3 +19,5 @@ pytest-asyncio==0.21.1
 httpx==0.25.2
 psutil==5.9.6
 slowapi==0.1.9
+celery==5.3.4
+redis[hiredis]==5.0.1

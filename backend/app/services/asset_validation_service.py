@@ -154,7 +154,7 @@ class AssetValidationService(IAssetValidationService):
             
             # Step 3: Background validation (for edge cases)
             # For now, we'll queue it but still return the failed result
-            await self.queue_background_validation([symbol])
+            await self.queue_background_validation([symbol], "system")
             
             # Step 4: Graceful degradation - return failed result with helpful info
             processing_time = time.time() - start_time
@@ -259,7 +259,7 @@ class AssetValidationService(IAssetValidationService):
                             return symbol, None, result.error
                     
                     else:  # BACKGROUND
-                        await self.queue_background_validation([symbol])
+                        await self.queue_background_validation([symbol], "system")
                         return symbol, None, "Queued for background validation"
             
             # Execute all validations concurrently
@@ -552,44 +552,100 @@ class AssetValidationService(IAssetValidationService):
     async def queue_background_validation(
         self,
         symbols: List[str],
+        user_id: str = "system",
         priority: int = 1
     ) -> ServiceResult[str]:
-        """Queue symbols for background validation, returns job_id"""
+        """Queue symbols for background validation using Celery workers"""
         try:
-            job_id = f"bg_validation_{int(time.time())}_{hash(tuple(symbols)) % 10000}"
+            # Import here to avoid circular imports
+            from ..workers.asset_validation_worker import validate_asset_background, bulk_validate_assets
             
-            job_data = {
-                "job_id": job_id,
-                "symbols": [s.upper() for s in symbols],
-                "priority": priority,
-                "queued_at": datetime.now(timezone.utc).isoformat(),
-                "status": "queued"
-            }
+            if len(symbols) == 1:
+                # Single symbol validation
+                task = validate_asset_background.apply_async(
+                    args=[symbols[0], user_id, False],
+                    queue='validation',
+                    priority=priority
+                )
+                
+                return ServiceResult(
+                    success=True,
+                    data=task.id,
+                    message=f"Queued {symbols[0]} for background validation",
+                    metadata={
+                        "task_id": task.id,
+                        "symbol": symbols[0],
+                        "user_id": user_id,
+                        "task_type": "single_validation",
+                        "queue": "validation"
+                    },
+                    next_actions=["monitor_task_progress", "check_task_status"]
+                )
             
-            # Store in Redis queue (simple implementation)
-            queue_key = f"background_validation_queue:{priority}"
-            await self.redis_client.lpush(queue_key, json.dumps(job_data))
-            
-            return ServiceResult(
-                success=True,
-                data=job_id,
-                message=f"Queued {len(symbols)} symbols for background validation",
-                metadata={
-                    "job_id": job_id,
-                    "symbols": symbols,
-                    "priority": priority,
-                    "queue_key": queue_key
-                },
-                next_actions=["monitor_background_job", "check_validation_status"]
-            )
-            
+            else:
+                # Bulk validation
+                task = bulk_validate_assets.apply_async(
+                    args=[symbols, user_id, 10],  # Batch size of 10
+                    queue='bulk_validation',
+                    priority=priority
+                )
+                
+                return ServiceResult(
+                    success=True,
+                    data=task.id,
+                    message=f"Queued {len(symbols)} symbols for bulk background validation",
+                    metadata={
+                        "task_id": task.id,
+                        "symbols_count": len(symbols),
+                        "user_id": user_id,
+                        "task_type": "bulk_validation",
+                        "queue": "bulk_validation"
+                    },
+                    next_actions=["monitor_bulk_progress", "check_bulk_results"]
+                )
+                
         except Exception as e:
-            logger.error(f"Background validation queueing failed: {e}")
-            return ServiceResult(
-                success=False,
-                error=str(e),
-                message="Failed to queue symbols for background validation"
-            )
+            logger.error(f"Celery background validation queueing failed: {e}")
+            
+            # Fallback to Redis queue for resilience
+            try:
+                import uuid
+                job_id = str(uuid.uuid4())
+                
+                job_data = {
+                    "job_id": job_id,
+                    "symbols": [s.upper() for s in symbols],
+                    "user_id": user_id,
+                    "priority": priority,
+                    "queued_at": datetime.now(timezone.utc).isoformat(),
+                    "status": "queued",
+                    "fallback": True
+                }
+                
+                # Store in Redis queue (fallback implementation)
+                queue_key = f"background_validation_queue:{priority}"
+                await self.redis_client.lpush(queue_key, json.dumps(job_data))
+                
+                return ServiceResult(
+                    success=True,
+                    data=job_id,
+                    message=f"Queued {len(symbols)} symbols via fallback Redis queue",
+                    metadata={
+                        "job_id": job_id,
+                        "symbols": symbols,
+                        "fallback": "redis_queue",
+                        "user_id": user_id
+                    },
+                    next_actions=["check_worker_status", "monitor_redis_queue"]
+                )
+                
+            except Exception as fallback_error:
+                logger.error(f"Fallback queueing also failed: {fallback_error}")
+                return ServiceResult(
+                    success=False,
+                    error=f"Both Celery and fallback queueing failed: {str(e)}, {str(fallback_error)}",
+                    message="Failed to queue symbols for background validation"
+                )
     
     async def get_validation_stats(
         self,

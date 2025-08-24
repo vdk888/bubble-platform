@@ -5,6 +5,8 @@ import redis
 import anthropic
 from ...core.config import settings
 from ...core.database import SessionLocal
+from ...core.celery_app import get_worker_status
+from ...workers.asset_validation_worker import get_task_progress
 from sqlalchemy import text
 
 router = APIRouter()
@@ -202,3 +204,76 @@ async def detailed_health_check():
     }
     
     return detailed_info
+
+@router.get("/workers")
+async def worker_health_check():
+    """Celery worker health check and monitoring"""
+    try:
+        worker_status = get_worker_status()
+        
+        return {
+            "success": worker_status['status'] in ['healthy'],
+            "data": {
+                "worker_status": worker_status['status'],
+                "active_workers": worker_status['workers'],
+                "active_tasks": worker_status['active_tasks'],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "details": worker_status.get('worker_stats', {}),
+                "message": worker_status.get('message', 'Workers operational')
+            },
+            "message": f"Found {worker_status['workers']} active workers",
+            "next_actions": ["view_task_progress", "monitor_queues", "check_metrics"] if worker_status['workers'] > 0 else ["start_workers"]
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "data": {
+                "worker_status": "error",
+                "active_workers": 0,
+                "active_tasks": 0,
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            },
+            "message": "Worker health check failed",
+            "next_actions": ["check_celery_broker", "restart_workers"]
+        }
+
+@router.get("/workers/progress/{task_id}")
+async def get_worker_task_progress(task_id: str):
+    """Get progress information for a specific background task"""
+    try:
+        progress_info = get_task_progress(task_id)
+        
+        if progress_info is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "success": False,
+                    "message": f"Task {task_id} not found or expired",
+                    "next_actions": ["check_task_id", "view_recent_tasks"]
+                }
+            )
+        
+        return {
+            "success": True,
+            "data": {
+                "task_id": task_id,
+                "progress_info": progress_info,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            },
+            "message": f"Task progress retrieved for {task_id}",
+            "next_actions": ["monitor_task", "check_results"] if progress_info.get('status') == 'completed' else ["wait_for_completion"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "success": False,
+                "message": f"Failed to retrieve task progress: {str(e)}",
+                "next_actions": ["check_redis_connection", "verify_task_id"]
+            }
+        )

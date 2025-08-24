@@ -450,15 +450,20 @@ class TestBackgroundValidation:
         """Test queueing symbols for background validation"""
         symbols = ["AAPL", "GOOGL"]
 
-        # Execute
-        result = await validation_service.queue_background_validation(symbols, priority=1)
+        # Mock Celery task (the new implementation tries Celery first)
+        with patch('app.workers.asset_validation_worker.bulk_validate_assets') as mock_task:
+            # Mock successful Celery task queuing
+            mock_task.apply_async.return_value.id = "celery-task-123"
+            
+            # Execute
+            result = await validation_service.queue_background_validation(symbols, user_id="test-user", priority=1)
 
-        # Assert
-        assert result.success is True
-        assert result.data.startswith("bg_validation_")
-        assert result.metadata["symbols"] == symbols
-        assert result.metadata["priority"] == 1
-        mock_redis_client.lpush.assert_called_once()
+            # Assert - Now expects Celery task ID
+            assert result.success is True
+            assert result.data == "celery-task-123"  # Celery task ID format
+            assert result.metadata["task_type"] == "bulk_validation"
+            assert result.metadata["symbols_count"] == 2
+            assert result.metadata["user_id"] == "test-user"
 
 
 class TestValidationStats:

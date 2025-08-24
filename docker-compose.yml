@@ -116,6 +116,54 @@ services:
     profiles:
       - test
 
+  # Celery Worker for background processing
+  celery_worker:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.core.celery_app worker --loglevel=info --queues=validation,bulk_validation,maintenance
+    environment:
+      - DATABASE_URL=postgresql://bubble_user:bubble_pass@db:5432/bubble_dev
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=development
+      - DEBUG=true
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    restart: unless-stopped
+
+  # Celery Beat for periodic tasks
+  celery_beat:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.core.celery_app beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://bubble_user:bubble_pass@db:5432/bubble_dev
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=development
+      - DEBUG=true
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+      - celery_beat_data:/tmp
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
+  celery_beat_data:
