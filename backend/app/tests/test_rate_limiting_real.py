@@ -210,8 +210,10 @@ class TestRateLimitBypass:
         assert "Rate limiting is REAL and tested - no bypasses" in conftest_content
         assert "mock_limiter_decorator" not in conftest_content
         
-        # This confirms real rate limiting validation is active
-        assert True
+        # Verify the conftest contains actual rate limiting configuration (not just comments)
+        rate_limit_config_patterns = ["limiter", "slowapi", "rate_limit"]
+        has_real_config = any(pattern in conftest_content.lower() for pattern in rate_limit_config_patterns)
+        assert has_real_config, "conftest.py lacks actual rate limiting configuration - only documentation found"
 
 
 # Test markers for different test categories

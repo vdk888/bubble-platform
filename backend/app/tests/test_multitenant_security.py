@@ -56,17 +56,36 @@ class TestRLSPolicySetup:
         
         test_user_id = "test-user-123"
         
+        # Check if we're running on PostgreSQL (RLS is PostgreSQL-specific)
+        db_engine = db_session.get_bind()
+        is_postgresql = db_engine.dialect.name == 'postgresql'
+        
         # Test setting user context
         rls_manager.set_user_context(test_user_id)
         
-        # Verify context is set (this will be validated in actual isolation tests)
-        # If context setting fails, subsequent isolation tests will catch it
-        
-        # Test resetting context
-        rls_manager.reset_user_context()
-        
-        # No exceptions should be raised
-        assert True
+        if is_postgresql:
+            # Verify the context was set by checking if we can execute a simple query without error
+            try:
+                current_user = db_session.execute("SELECT current_setting('rls.user_id', true)").scalar()
+                context_set_success = current_user == test_user_id
+            except Exception:
+                context_set_success = False
+            
+            # Test resetting context
+            rls_manager.reset_user_context()
+            
+            # Verify operations completed successfully on PostgreSQL
+            assert context_set_success, f"User context setting failed - expected {test_user_id}, RLS context management is broken"
+        else:
+            # For non-PostgreSQL databases, verify that operations don't crash
+            # Even though RLS is not supported, context management should not fail
+            try:
+                rls_manager.reset_user_context()
+                operations_completed = True
+            except Exception:
+                operations_completed = False
+            
+            assert operations_completed, "RLS context management operations should not crash on non-PostgreSQL databases"
 
 
 class TestActualMultiTenantIsolation:

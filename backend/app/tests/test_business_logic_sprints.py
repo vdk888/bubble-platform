@@ -302,7 +302,7 @@ class TestSprint2UniverseManagementRequirements:
         # Verify relationships
         universe_assets = db_session.query(UniverseAsset).filter(
             UniverseAsset.universe_id == universe.id
-        ).all()
+        ).order_by(UniverseAsset.position).all()
         
         assert len(universe_assets) == 2
         assert universe_assets[0].position == 1
