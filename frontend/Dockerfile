@@ -1,13 +1,16 @@
-# Simplified frontend for Sprint 1 completion - serves static HTML
+# React development server for Step 7 Universe Management Dashboard
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Install serve to serve static files
-RUN npm install -g serve
+# Copy package files
+COPY package*.json ./
 
-# Copy static HTML files
-COPY public ./build
+# Install dependencies
+RUN npm install
+
+# Copy all source code
+COPY . .
 
 # Expose port
 EXPOSE 3000
@@ -16,5 +19,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-# Start the server
-CMD ["serve", "-s", "build", "-l", "3000"]
+# Start React development server
+CMD ["npm", "start"]

@@ -95,16 +95,16 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" data-testid="universe-dashboard">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-gray-900" data-testid="page-title">
                 Investment Universes
               </h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500" data-testid="page-description">
                 Manage your asset universes and build investment strategies
               </p>
             </div>
@@ -147,6 +147,7 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
               <button
                 onClick={handleCreateUniverse}
                 className="btn-primary"
+                data-testid="create-universe-button"
               >
                 <PlusIcon className="w-4 h-4 mr-2" />
                 Create Universe
