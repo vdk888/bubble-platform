@@ -94,16 +94,39 @@ async def list_universes(
     # Convert to response format
     universe_responses = []
     for universe in result.data:
-        universe_responses.append(UniverseResponse(
-            id=universe.id,
-            name=universe.name,
-            description=universe.description,
-            asset_count=len(universe.get_symbols()),
-            symbols=universe.get_symbols(),
-            turnover_rate=universe.turnover_rate,
-            created_at=universe.created_at.isoformat(),
-            updated_at=universe.updated_at.isoformat()
-        ))
+        # Handle both dict and object formats from service
+        if isinstance(universe, dict):
+            # Convert datetime objects to ISO strings if needed
+            created_at = universe["created_at"]
+            if hasattr(created_at, 'isoformat'):
+                created_at = created_at.isoformat()
+            
+            updated_at = universe["updated_at"]
+            if hasattr(updated_at, 'isoformat'):
+                updated_at = updated_at.isoformat()
+                
+            universe_responses.append(UniverseResponse(
+                id=universe["id"],
+                name=universe["name"],
+                description=universe["description"],
+                asset_count=len(universe.get("symbols", [])),
+                symbols=universe.get("symbols", []),
+                turnover_rate=universe.get("turnover_rate", 0.0),
+                created_at=created_at,
+                updated_at=updated_at
+            ))
+        else:
+            # Object format
+            universe_responses.append(UniverseResponse(
+                id=universe.id,
+                name=universe.name,
+                description=universe.description,
+                asset_count=len(universe.get_symbols()),
+                symbols=universe.get_symbols(),
+                turnover_rate=universe.turnover_rate,
+                created_at=universe.created_at.isoformat(),
+                updated_at=universe.updated_at.isoformat()
+            ))
     
     # AI-friendly next actions
     next_actions = ["create_universe"]
@@ -122,14 +145,14 @@ async def list_universes(
         metadata={
             "total_universes": len(universe_responses),
             "total_unique_assets": len(set(
-                symbol for universe in result.data 
-                for symbol in universe.get_symbols()
-            )) if result.data else 0,
+                symbol for universe_response in universe_responses
+                for symbol in universe_response.symbols
+            )) if universe_responses else 0,
             "user_id": current_user.id
         }
     )
 
-@router.post("/", response_model=AIUniverseResponse, summary="Create a new universe")
+@router.post("/", response_model=AIUniverseResponse, status_code=status.HTTP_201_CREATED, summary="Create a new universe")
 async def create_universe(
     universe_data: UniverseCreateRequest,
     current_user: User = Depends(get_current_user),
@@ -161,18 +184,33 @@ async def create_universe(
     
     universe = result.data
     
+    # Handle case where universe might be a dict (from create_universe) or object (from get_universe_by_id)
+    universe_id = universe["id"] if isinstance(universe, dict) else universe.id
+    
     # Add initial symbols if provided
     if universe_data.symbols:
         add_result = await universe_service.add_assets_to_universe_api(
-            universe_id=universe.id,
+            universe_id=universe_id,
             asset_symbols=universe_data.symbols
         )
-        # Update universe with assets added
+        # Update universe with assets added - refresh to get updated asset count
         if add_result.success:
-            # Refresh universe to get updated asset count
-            updated_result = await universe_service.get_universe_by_id(universe.id)
+            # Always refresh universe to get updated asset count as model object
+            updated_result = await universe_service.get_universe_by_id(universe_id)
             if updated_result.success:
-                universe = updated_result.data
+                universe = updated_result.data  # Now guaranteed to be model object
+    
+    # Ensure we have a model object, not a dict
+    if isinstance(universe, dict):
+        # If still a dict, get the actual model object
+        refresh_result = await universe_service.get_universe_by_id(universe_id)
+        if refresh_result.success:
+            universe = refresh_result.data
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve created universe"
+            )
     
     response_data = UniverseResponse(
         id=universe.id,
@@ -416,7 +454,7 @@ async def delete_universe(
         }
     }
 
-@router.post("/{universe_id}/assets", response_model=AIAssetOperationResponse, summary="Add assets to universe")
+@router.post("/{universe_id}/assets", response_model=AIAssetOperationResponse, summary="Add assets to universe", status_code=status.HTTP_201_CREATED)
 async def add_assets(
     universe_id: str,
     assets_data: AssetOperationRequest,

@@ -120,7 +120,14 @@ class TestAssetModel:
         assert asset_dict["is_validated"] is True
         assert asset_dict["last_validated_at"] is not None
         # Just check that it's a valid timestamp format, not exact match due to timezone differences
-        assert "2025-08-23T" in asset_dict["last_validated_at"]
+        assert "T" in asset_dict["last_validated_at"]  # ISO format check
+        # Verify it's close to the time we set (within 5 seconds)
+        returned_time = datetime.fromisoformat(asset_dict["last_validated_at"].replace('Z', '+00:00'))
+        # Ensure both datetimes are timezone-aware for comparison
+        if returned_time.tzinfo is None:
+            returned_time = returned_time.replace(tzinfo=timezone.utc)
+        time_diff = abs((returned_time - now).total_seconds())
+        assert time_diff < 5
         assert asset_dict["validation_source"] == "alpha_vantage"
         assert asset_dict["asset_metadata"]["beta"] == 2.1
         assert asset_dict["asset_metadata"]["52_week_high"] == 415.0

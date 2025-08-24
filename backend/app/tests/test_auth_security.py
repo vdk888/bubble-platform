@@ -159,7 +159,7 @@ class TestJWTSecurityValidation:
         
         # Create token with very short expiry
         old_expire_minutes = auth_service.access_token_expire_minutes
-        auth_service.access_token_expire_minutes = 0.01  # ~0.6 seconds
+        auth_service.access_token_expire_minutes = 0.02  # ~1.2 seconds for reliable testing
         
         try:
             token = auth_service.create_access_token(user_data)
@@ -168,7 +168,7 @@ class TestJWTSecurityValidation:
             assert auth_service.verify_token(token) is not None
             
             # Wait for expiration
-            time.sleep(1)
+            time.sleep(1.5)  # Wait longer than token expiry
             
             # Should be invalid after expiration
             assert auth_service.verify_token(token) is None
@@ -199,8 +199,9 @@ class TestAuthenticationEndpointsReal:
     
     def test_user_registration_with_real_password_hashing(self, client: TestClient, db_session: Session):
         """Test user registration creates real bcrypt hashes"""
+        import uuid
         registration_data = {
-            "email": "security.test@bubble.com",
+            "email": f"security.test.{uuid.uuid4().hex[:8]}@bubble.com",
             "password": "SecureFinance2025!@#",
             "full_name": "Security Test User"
         }
@@ -254,8 +255,9 @@ class TestAuthenticationEndpointsReal:
     
     def test_ai_friendly_response_format(self, client: TestClient):
         """Test authentication responses follow Sprint 1 AI-friendly format"""
+        import uuid
         registration_data = {
-            "email": "ai.test@bubble.com",
+            "email": f"ai.test.{uuid.uuid4().hex[:8]}@bubble.com",
             "password": "SecureFinance2025!@#",
             "full_name": "AI Test User"
         }
@@ -279,7 +281,7 @@ class TestAuthenticationEndpointsReal:
         # Verify user data structure
         user_data = data["user"]
         assert "id" in user_data
-        assert user_data["email"] == "ai.test@bubble.com"
+        assert user_data["email"] == registration_data["email"]
         assert user_data["role"] == "user"
         assert user_data["subscription_tier"] == "free"
 
@@ -317,12 +319,13 @@ class TestPasswordValidationBehavior:
         strong_passwords = [
             "SecureFinance2025!@#",
             "MyStrongP@ssw0rd123",
-            "Bubble$Platform#2025!",
+            "Capital$Invest#2025!",
         ]
         
+        import uuid
         for i, strong_password in enumerate(strong_passwords):
             registration_data = {
-                "email": f"strong{i}@bubble.com",
+                "email": f"strong{i}.{uuid.uuid4().hex[:8]}@bubble.com",
                 "password": strong_password,
                 "full_name": f"Strong Password Test {i}"
             }

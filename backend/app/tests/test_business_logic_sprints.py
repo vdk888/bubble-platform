@@ -105,8 +105,9 @@ class TestSprint1AuthenticationRequirements:
     
     def test_advanced_jwt_with_multi_tenant_claims(self, client: TestClient):
         """Test advanced JWT implementation from Sprint 1 Decision 1"""
+        import uuid
         registration_data = {
-            "email": "jwt.test@bubble.com",
+            "email": f"jwt.test.{uuid.uuid4().hex[:8]}@bubble.com",
             "password": "SecureFinance2025!@#",
             "full_name": "JWT Test User"
         }
@@ -128,7 +129,7 @@ class TestSprint1AuthenticationRequirements:
         token_data = auth_service.verify_token(data["access_token"])
         
         assert token_data is not None
-        assert token_data.email == "jwt.test@bubble.com"
+        assert token_data.email == registration_data["email"]
         assert token_data.role == "user"
         assert token_data.subscription_tier == "free"
         
@@ -310,8 +311,9 @@ class TestSprint2UniverseManagementRequirements:
     def test_ai_friendly_restful_api_design(self, client: TestClient, db_session: Session):
         """Test AI-friendly API design from Sprint 2 Decision 4"""
         # First register a user to get authentication
+        import uuid
         registration_data = {
-            "email": "api.design.test@bubble.com",
+            "email": f"api.design.test.{uuid.uuid4().hex[:8]}@bubble.com",
             "password": "SecureFinance2025!@#",
             "full_name": "API Design Test"
         }

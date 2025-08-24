@@ -167,6 +167,11 @@ class AuthService:
         Supports both access and refresh tokens
         """
         try:
+            # Handle None or empty token
+            if not token:
+                return None
+                
+            # JWT decode will automatically verify expiration if validate is True (default)
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
             
             user_id: str = payload.get("sub")
@@ -174,6 +179,13 @@ class AuthService:
             
             if user_id is None or email is None:
                 return None
+            
+            # Double-check expiration manually for security
+            exp_timestamp = payload.get("exp")
+            if exp_timestamp:
+                exp_time = datetime.fromtimestamp(exp_timestamp, tz=timezone.utc)
+                if datetime.now(timezone.utc) > exp_time:
+                    return None
                 
             token_data = TokenData(
                 user_id=user_id,

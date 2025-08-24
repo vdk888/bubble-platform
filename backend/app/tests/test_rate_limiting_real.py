@@ -202,7 +202,7 @@ class TestRateLimitBypass:
         # No artificial bypasses should be present
         
         # Read conftest.py to verify real rate limiting is configured
-        with open("backend/app/tests/conftest.py", "r") as f:
+        with open("app/tests/conftest.py", "r") as f:
             conftest_content = f.read()
         
         # Verify real rate limiting client exists and no bypasses

@@ -65,6 +65,10 @@ def client():
     original_env = os.environ.get("ENVIRONMENT")
     os.environ["ENVIRONMENT"] = "testing"
     
+    # Reset rate limiter state for each test
+    from app.core.middleware import limiter
+    limiter.reset()
+    
     # Create tables in our test database
     Base.metadata.create_all(bind=engine)
     

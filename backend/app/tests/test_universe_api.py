@@ -80,7 +80,7 @@ class TestUniverseAPI:
         
         response = client.post("/api/v1/universes/", json=universe_data)
         
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["success"] is True
         assert data["data"]["name"] == "Tech Stocks"
@@ -98,7 +98,7 @@ class TestUniverseAPI:
         
         response = client.post("/api/v1/universes/", json=universe_data)
         
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["success"] is True
         assert data["data"]["name"] == "Minimal Universe"
@@ -261,7 +261,7 @@ class TestUniverseAPI:
         # Create test universe using mocked service
         universe_data = {"name": "Universe for Assets", "description": "Test adding assets"}
         create_response = client.post("/api/v1/universes/", json=universe_data)
-        assert create_response.status_code == 200
+        assert create_response.status_code == 201
         
         created_universe = create_response.json()["data"]
         universe_id = created_universe["id"]
@@ -271,7 +271,7 @@ class TestUniverseAPI:
         
         response = client.post(f"/api/v1/universes/{universe_id}/assets", json=assets_data)
         
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["success"] is True
         assert data["data"]["added_count"] == 2
@@ -287,7 +287,7 @@ class TestUniverseAPI:
         # Create test universe using mocked service
         universe_data = {"name": "Universe for Mixed Assets", "description": "Test mixed asset addition"}
         create_response = client.post("/api/v1/universes/", json=universe_data)
-        assert create_response.status_code == 200
+        assert create_response.status_code == 201
         
         created_universe = create_response.json()["data"]
         universe_id = created_universe["id"]
@@ -297,7 +297,7 @@ class TestUniverseAPI:
         
         response = client.post(f"/api/v1/universes/{universe_id}/assets", json=assets_data)
         
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["success"] is True
         # Using mocked service - all symbols succeed by default
@@ -314,7 +314,7 @@ class TestUniverseAPI:
         # Create test universe with initial assets using mocked service
         universe_data = {"name": "Universe with Assets", "description": "Test removing assets", "symbols": ["AAPL", "GOOGL", "MSFT"]}
         create_response = client.post("/api/v1/universes/", json=universe_data)
-        assert create_response.status_code == 200
+        assert create_response.status_code == 201
         
         created_universe = create_response.json()["data"]
         universe_id = created_universe["id"]
@@ -491,7 +491,7 @@ class TestUniverseAPIValidation:
         response = client.post("/api/v1/universes/", json=universe_data)
         
         # Empty name is allowed by current model (name: str without constraints)
-        assert response.status_code == 200
+        assert response.status_code == 201
     
     def test_add_assets_empty_symbols_list(self, authenticated_client):
         """Test adding empty symbols list to universe - simplified Interface First Design approach"""
@@ -567,7 +567,7 @@ class TestUniverseAPIValidation:
             # Create test universe
             universe_data = {"name": "Test Universe Empty", "description": "Test empty symbols"}
             create_response = client.post("/api/v1/universes/", json=universe_data)
-            assert create_response.status_code == 200
+            assert create_response.status_code == 201
             
             created_universe = create_response.json()["data"]
             universe_id = created_universe["id"]
@@ -577,7 +577,7 @@ class TestUniverseAPIValidation:
             response = client.post(f"/api/v1/universes/{universe_id}/assets", json=assets_data)
             
             # Verify graceful handling per "Never trust user input" principle
-            assert response.status_code == 200
+            assert response.status_code == 201
             data = response.json()
             assert data["success"] is True
             assert data["data"]["added_count"] == 0
@@ -598,4 +598,4 @@ class TestUniverseAPIValidation:
         response = client.post("/api/v1/universes/", json=universe_data)
         
         # Very long names should be accepted (no length limit in current model)
-        assert response.status_code == 200
+        assert response.status_code == 201

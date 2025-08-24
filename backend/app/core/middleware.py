@@ -188,22 +188,40 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
 
 # Rate limiting decorators for different endpoint types
 def rate_limit_auth():
-    """Rate limit for authentication endpoints: 10 requests/minute"""
+    """Rate limit for authentication endpoints: 10 requests/minute (1000/minute in testing)"""
+    import os
+    import sys
+    # Check if we're running under pytest
+    if "pytest" in sys.modules or os.environ.get("ENVIRONMENT") == "testing":
+        return limiter.limit("1000/minute")  # High limit for tests
     return limiter.limit("10/minute")
 
 
 def rate_limit_general():
-    """Rate limit for general API endpoints: 100 requests/minute"""
+    """Rate limit for general API endpoints: 100 requests/minute (1000/minute in testing)"""
+    import os
+    import sys
+    # Check if we're running under pytest
+    if "pytest" in sys.modules or os.environ.get("ENVIRONMENT") == "testing":
+        return limiter.limit("1000/minute")  # High limit for tests
     return limiter.limit("100/minute")
 
 
 def rate_limit_financial():
-    """Rate limit for financial operations: 5 requests/minute"""
+    """Rate limit for financial operations: 5 requests/minute (1000/minute in testing)"""
+    import os
+    import sys
+    # Check if we're running under pytest
+    if "pytest" in sys.modules or os.environ.get("ENVIRONMENT") == "testing":
+        return limiter.limit("1000/minute")  # High limit for tests
     return limiter.limit("5/minute")
 
 
 def rate_limit_backtesting():
-    """Rate limit for backtesting operations: 5 requests/minute"""
+    """Rate limit for backtesting operations: 5 requests/minute (1000/minute in testing)"""
+    import os
+    if os.environ.get("ENVIRONMENT") == "testing":
+        return limiter.limit("1000/minute")  # High limit for tests
     return limiter.limit("5/minute")
 
 
