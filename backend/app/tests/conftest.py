@@ -4,6 +4,7 @@ Following Interface First Design principles for comprehensive test coverage.
 """
 import pytest
 import asyncio
+import warnings
 from unittest.mock import Mock, AsyncMock
 from datetime import datetime, timezone
 from typing import Dict, Any
@@ -17,6 +18,27 @@ from app.models.base import Base
 from app.models.user import User, UserRole, SubscriptionTier
 from app.services.interfaces.base import ServiceResult
 from app.core.config import settings
+
+# Register custom pytest markers programmatically
+def pytest_configure(config):
+    """Configure pytest with custom markers"""
+    markers = [
+        "unit: Unit tests",
+        "integration: Integration tests", 
+        "slow: Slow running tests",
+        "background_processing: Background processing tests",
+        "business_logic: Business logic validation tests",
+        "security: Security-focused tests",
+        "comprehensive: Comprehensive test coverage",
+        "rate_limiting: Rate limiting tests",
+        "real_validation: Tests with real validation (no bypasses)",
+        "health_monitoring: Health monitoring tests",
+        "api_endpoints: API endpoint tests",
+    ]
+    
+    for marker in markers:
+        config.addinivalue_line("markers", marker)
+
 
 # Test database URL - use memory database to avoid I/O issues
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"

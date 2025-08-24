@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
-from passlib.context import CryptContext
+import bcrypt
 from jose import JWTError, jwt
 from pydantic import BaseModel, EmailStr
 import secrets
@@ -48,19 +48,28 @@ class AuthService:
     """
     
     def __init__(self):
-        self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        # Use bcrypt directly for better performance and no deprecation warnings
+        self.bcrypt_rounds = 12  # Secure default for 2025
         self.algorithm = settings.jwt_algorithm
         self.secret_key = settings.secret_key
         self.access_token_expire_minutes = settings.access_token_expire_minutes
         self.refresh_token_expire_days = settings.refresh_token_expire_days
     
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Verify password against hash"""
-        return self.pwd_context.verify(plain_password, hashed_password)
+        """Verify password against hash using bcrypt directly"""
+        try:
+            return bcrypt.checkpw(
+                plain_password.encode('utf-8'), 
+                hashed_password.encode('utf-8')
+            )
+        except (ValueError, TypeError):
+            return False
     
     def get_password_hash(self, password: str) -> str:
-        """Hash password for storage"""
-        return self.pwd_context.hash(password)
+        """Hash password for storage using bcrypt directly"""
+        salt = bcrypt.gensalt(rounds=self.bcrypt_rounds)
+        hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+        return hashed.decode('utf-8')
     
     def validate_password_strength(self, password: str) -> tuple[bool, PasswordStrength, list[str]]:
         """
