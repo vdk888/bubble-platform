@@ -13,6 +13,12 @@ import {
 // API Configuration - use proxy in development, direct URL in production
 const API_BASE_URL = process.env.NODE_ENV === 'development' ? '' : (process.env.REACT_APP_API_URL || 'http://localhost:8000');
 
+console.log('🔧 API Configuration:', {
+  NODE_ENV: process.env.NODE_ENV,
+  REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+  API_BASE_URL
+});
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -23,6 +29,25 @@ const apiClient = axios.create({
 
 // Request interceptor to add authentication token
 apiClient.interceptors.request.use((config) => {
+  console.log('🚨 AXIOS CONFIG DEBUG:', {
+    method: config.method?.toUpperCase(),
+    url: config.url,
+    baseURL: config.baseURL,
+    fullURL: (config.baseURL || '') + (config.url || ''),
+    configuredBaseURL: API_BASE_URL,
+    actualUrl: config.url,
+    finalRequestUrl: config.baseURL ? config.baseURL + config.url : config.url
+  });
+  
+  // Critical debugging: Check if baseURL is being changed somehow
+  if (config.baseURL !== API_BASE_URL) {
+    console.error('🚨 BASEURL MISMATCH!', {
+      expected: API_BASE_URL,
+      actual: config.baseURL,
+      thisWillBreakProxy: true
+    });
+  }
+  
   const token = localStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -72,10 +97,44 @@ export const authAPI = {
   },
 };
 
+// DEBUGGING: Create fresh axios instance for universe API
+const freshApiClient = axios.create({
+  baseURL: '',  // Force empty baseURL for proxy
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add token to fresh client
+freshApiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  console.log('🆕 FRESH CLIENT DEBUG:', {
+    baseURL: config.baseURL,
+    url: config.url,
+    fullURL: (config.baseURL || '') + (config.url || ''),
+    shouldUseProxy: true
+  });
+  return config;
+});
+
 // Universe API
 export const universeAPI = {
   list: async (): Promise<ServiceResult<Universe[]>> => {
-    const response = await apiClient.get('/api/v1/universes');
+    console.log('🔍 UNIVERSE API DEBUG - Before request:', {
+      apiClientBaseURL: apiClient.defaults.baseURL,
+      expectedBaseURL: API_BASE_URL,
+      urlPath: '/api/v1/universes',
+      willRequestTo: (apiClient.defaults.baseURL || '') + '/api/v1/universes'
+    });
+    
+    console.log('🧪 TESTING FRESH CLIENT vs ORIGINAL CLIENT');
+    
+    // TEST: Use fresh axios client instead of shared one
+    const response = await freshApiClient.get('/api/v1/universes');
     return response.data;
   },
 
