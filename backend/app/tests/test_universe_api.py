@@ -21,10 +21,13 @@ class TestUniverseAPI:
     def authenticated_client(self, client: TestClient, db_session: Session):
         """Create authenticated client with test user - Interface First Design pattern"""
         # Create test user
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         test_user = User(
             id="test-user-1",
             email="test@example.com",
-            hashed_password="hashed_password",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
             full_name="Test User",
             role=UserRole.USER,
             subscription_tier=SubscriptionTier.FREE,
@@ -336,10 +339,13 @@ class TestUniverseAPIPermissions:
     @pytest.fixture
     def two_users(self, db_session: Session):
         """Create two test users"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         user1 = User(
             id="user-1",
             email="user1@example.com",
-            hashed_password="password1",
+            hashed_password=auth_service.get_password_hash("SecurePassword1_2025!"),
             full_name="User One",
             role=UserRole.USER,
             subscription_tier=SubscriptionTier.FREE,
@@ -348,7 +354,7 @@ class TestUniverseAPIPermissions:
         user2 = User(
             id="user-2", 
             email="user2@example.com",
-            hashed_password="password2",
+            hashed_password=auth_service.get_password_hash("SecurePassword2_2025!"),
             full_name="User Two",
             role=UserRole.USER,
             subscription_tier=SubscriptionTier.PRO,
@@ -434,10 +440,13 @@ class TestUniverseAPIValidation:
     @pytest.fixture
     def authenticated_client(self, client: TestClient, db_session: Session):
         """Create authenticated client - Interface First Design pattern"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         test_user = User(
             id="validation-user-1",
             email="validation@example.com",
-            hashed_password="hashed_password",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
             full_name="Validation User",
             role=UserRole.USER,
             subscription_tier=SubscriptionTier.FREE,

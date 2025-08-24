@@ -22,9 +22,12 @@ class TestUniverseServiceCRUD:
     @pytest.fixture
     def test_user(self, db_session: Session) -> User:
         """Create test user for universe operations"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         user = User(
             email="universe_test@example.com",
-            hashed_password="hashed_password_123",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
             full_name="Universe Test User"
         )
         db_session.add(user)
@@ -35,9 +38,12 @@ class TestUniverseServiceCRUD:
     @pytest.fixture
     def second_user(self, db_session: Session) -> User:
         """Create second test user for isolation testing"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         user = User(
             email="second_user@example.com",
-            hashed_password="hashed_password_456",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
             full_name="Second Test User"
         )
         db_session.add(user)
@@ -236,9 +242,12 @@ class TestUniverseServiceAssetManagement:
     @pytest.fixture
     def test_user(self, db_session: Session) -> User:
         """Create test user"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         user = User(
             email="asset_test@example.com",
-            hashed_password="hashed_password_123",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
             full_name="Asset Test User"
         )
         db_session.add(user)
@@ -362,9 +371,12 @@ class TestUniverseServiceMultiTenant:
     @pytest.fixture
     def user1(self, db_session: Session) -> User:
         """First test user"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         user = User(
             email="user1@example.com",
-            hashed_password="hash1",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword1_2025!"),
             full_name="User One"
         )
         db_session.add(user)
@@ -375,9 +387,12 @@ class TestUniverseServiceMultiTenant:
     @pytest.fixture
     def user2(self, db_session: Session) -> User:
         """Second test user"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         user = User(
             email="user2@example.com",
-            hashed_password="hash2",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2_2025!"),
             full_name="User Two"
         )
         db_session.add(user)
@@ -487,9 +502,12 @@ class TestUniverseServiceAIFriendlyResponses:
     @pytest.fixture
     def test_user(self, db_session: Session) -> User:
         """Create test user"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         user = User(
             email="ai_test@example.com",
-            hashed_password="hash123",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
             full_name="AI Test User"
         )
         db_session.add(user)

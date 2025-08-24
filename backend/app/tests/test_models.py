@@ -11,9 +11,12 @@ from app.models.chat import Conversation, ChatMessage
 
 def test_create_user(db_session: Session):
     """Test creating a user model."""
+    from app.core.security import AuthService
+    auth_service = AuthService()
+    
     user = User(
         email="test@example.com",
-        hashed_password="hashed_password_123",
+        hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
         full_name="Test User"
     )
     db_session.add(user)
@@ -31,9 +34,12 @@ def test_create_user(db_session: Session):
 def test_create_universe(db_session: Session):
     """Test creating a universe with owner relationship."""
     # Create user first
+    from app.core.security import AuthService
+    auth_service = AuthService()
+    
     user = User(
         email="test@example.com",
-        hashed_password="hashed_password_123"
+        hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")
     )
     db_session.add(user)
     db_session.commit()
@@ -59,7 +65,13 @@ def test_create_universe(db_session: Session):
 def test_create_strategy(db_session: Session):
     """Test creating a strategy with relationships."""
     # Create user and universe first
-    user = User(email="test@example.com", hashed_password="hash123")
+    from app.core.security import AuthService
+    auth_service = AuthService()
+    
+    user = User(
+        email="test@example.com", 
+        hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")
+    )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
@@ -97,7 +109,13 @@ def test_create_strategy(db_session: Session):
 def test_create_portfolio(db_session: Session):
     """Test creating a portfolio model."""
     # Create user first
-    user = User(email="test@example.com", hashed_password="hash123")
+    from app.core.security import AuthService
+    auth_service = AuthService()
+    
+    user = User(
+        email="test@example.com", 
+        hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")
+    )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
@@ -124,8 +142,14 @@ def test_create_portfolio(db_session: Session):
 
 def test_create_conversation(db_session: Session):
     """Test creating a conversation with messages."""
-    # Create user first
-    user = User(email="test@example.com", hashed_password="hash123")
+    # Create user first  
+    from app.core.security import AuthService
+    auth_service = AuthService()
+    
+    user = User(
+        email="test@example.com", 
+        hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")
+    )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)

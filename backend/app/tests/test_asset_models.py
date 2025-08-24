@@ -201,7 +201,12 @@ class TestUniverseAssetModel:
     def test_create_universe_asset_relationship(self, db_session: Session):
         """Test creating a basic universe-asset relationship."""
         # Create dependencies
-        user = User(email="test@example.com", hashed_password="hash123")
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        user = User(
+            email="test@example.com", 
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")
+        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -234,7 +239,7 @@ class TestUniverseAssetModel:
     def test_universe_asset_with_metadata(self, db_session: Session):
         """Test UniverseAsset with all optional fields."""
         # Create dependencies - user first to get ID
-        user = User(email="test@example.com", hashed_password="hash123")
+        from app.core.security import AuthService\n        auth_service = AuthService()\n        user = User(\n            email="test@example.com", \n            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")\n        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -266,7 +271,7 @@ class TestUniverseAssetModel:
     def test_universe_asset_relationships(self, db_session: Session):
         """Test that UniverseAsset properly relates to Universe and Asset."""
         # Create dependencies - user first to get ID
-        user = User(email="test@example.com", hashed_password="hash123")
+        from app.core.security import AuthService\n        auth_service = AuthService()\n        user = User(\n            email="test@example.com", \n            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")\n        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -296,7 +301,7 @@ class TestUniverseAssetModel:
     def test_universe_asset_to_dict(self, db_session: Session):
         """Test UniverseAsset to_dict() method."""
         # Create dependencies - user first to get ID
-        user = User(email="test@example.com", hashed_password="hash123")
+        from app.core.security import AuthService\n        auth_service = AuthService()\n        user = User(\n            email="test@example.com", \n            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")\n        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -338,7 +343,7 @@ class TestUniverseModelUpdated:
     def test_universe_get_symbols_from_relationships(self, db_session: Session):
         """Test Universe.get_symbols() using new Asset relationships."""
         # Create dependencies - user first to get ID
-        user = User(email="test@example.com", hashed_password="hash123")
+        from app.core.security import AuthService\n        auth_service = AuthService()\n        user = User(\n            email="test@example.com", \n            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")\n        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -376,7 +381,7 @@ class TestUniverseModelUpdated:
     def test_universe_get_symbols_legacy_fallback(self, db_session: Session):
         """Test Universe.get_symbols() falls back to legacy JSON symbols."""
         # Create user first to get ID
-        user = User(email="test@example.com", hashed_password="hash123")
+        from app.core.security import AuthService\n        auth_service = AuthService()\n        user = User(\n            email="test@example.com", \n            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")\n        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -398,7 +403,7 @@ class TestUniverseModelUpdated:
     def test_universe_get_assets_with_metadata(self, db_session: Session):
         """Test Universe.get_assets() returns full asset data with relationship metadata."""
         # Create dependencies - user first to get ID
-        user = User(email="test@example.com", hashed_password="hash123")
+        from app.core.security import AuthService\n        auth_service = AuthService()\n        user = User(\n            email="test@example.com", \n            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")\n        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -453,7 +458,7 @@ class TestUniverseModelUpdated:
     def test_universe_get_asset_count(self, db_session: Session):
         """Test Universe.get_asset_count() method."""
         # Create user first to get ID
-        user = User(email="test@example.com", hashed_password="hash123")
+        from app.core.security import AuthService\n        auth_service = AuthService()\n        user = User(\n            email="test@example.com", \n            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")\n        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -490,7 +495,7 @@ class TestUniverseModelUpdated:
     def test_universe_calculate_turnover_rate(self, db_session: Session):
         """Test Universe.calculate_turnover_rate() method."""
         # Create universe with existing assets - user first to get ID
-        user = User(email="test@example.com", hashed_password="hash123")
+        from app.core.security import AuthService\n        auth_service = AuthService()\n        user = User(\n            email="test@example.com", \n            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")\n        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -534,7 +539,7 @@ class TestUniverseModelUpdated:
     def test_universe_to_dict_enhanced(self, db_session: Session):
         """Test Universe.to_dict() includes asset count and symbols."""
         # Create user first to get ID
-        user = User(email="test@example.com", hashed_password="hash123")
+        from app.core.security import AuthService\n        auth_service = AuthService()\n        user = User(\n            email="test@example.com", \n            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")\n        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -579,7 +584,7 @@ class TestDatabaseConstraintsAndIndexes:
     def test_asset_foreign_key_constraints(self, db_session: Session):
         """Test foreign key constraints on UniverseAsset table."""
         # Create valid universe and asset - user first to get ID
-        user = User(email="test@example.com", hashed_password="hash123")
+        from app.core.security import AuthService\n        auth_service = AuthService()\n        user = User(\n            email="test@example.com", \n            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")\n        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -621,7 +626,7 @@ class TestDatabaseConstraintsAndIndexes:
     def test_cascade_delete_behavior(self, db_session: Session):
         """Test cascade delete behavior when parent entities are deleted."""
         # Create full hierarchy - user first to get ID
-        user = User(email="test@example.com", hashed_password="hash123")
+        from app.core.security import AuthService\n        auth_service = AuthService()\n        user = User(\n            email="test@example.com", \n            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!")\n        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)

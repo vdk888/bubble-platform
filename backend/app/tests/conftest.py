@@ -77,20 +77,8 @@ def client():
     
     app.dependency_overrides[get_db] = override_get_db
     
-    # Disable rate limiting for tests by mocking the limiter
-    # This prevents rate limiting interference during test runs
-    def mock_limiter_decorator(*args, **kwargs):
-        def decorator(func):
-            return func  # Return the original function without rate limiting
-        return decorator
-    
-    # Override the limiter in both assets and middleware modules
-    from app.api.v1 import assets
-    from app.core import middleware
-    original_assets_limit = assets.limiter.limit
-    original_middleware_limit = middleware.limiter.limit
-    assets.limiter.limit = mock_limiter_decorator
-    middleware.limiter.limit = mock_limiter_decorator
+    # Configure test timeouts for rate limiting tests
+    # Rate limiting is REAL and tested - no bypasses, just proper timing
     
     with TestClient(app) as test_client:
         yield test_client
@@ -98,10 +86,6 @@ def client():
     # Cleanup
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)
-    
-    # Restore rate limiters
-    assets.limiter.limit = original_assets_limit
-    middleware.limiter.limit = original_middleware_limit
     
     # Restore original environment
     if original_env:
@@ -170,10 +154,13 @@ def mock_asset_validation_service():
 @pytest.fixture
 def authenticated_test_user(db_session: Session):
     """Create a test user with proper authentication setup."""
+    from app.core.security import AuthService
+    auth_service = AuthService()
+    
     test_user = User(
         id="test-user-authenticated",
         email="test@example.com",
-        hashed_password="hashed_test_password",
+        hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
         full_name="Test User",
         role=UserRole.USER,
         subscription_tier=SubscriptionTier.PRO,
@@ -446,3 +433,40 @@ def universe_service_override(mock_universe_service):
     yield mock_universe_service
     
     cleanup_service_override(get_universe_service)
+
+
+@pytest.fixture(scope="function")
+def real_rate_limit_client():
+    """Create a test client with REAL rate limiting enabled (no bypasses)."""
+    import os
+    
+    # Set testing environment but keep rate limiting active
+    original_env = os.environ.get("ENVIRONMENT")
+    os.environ["ENVIRONMENT"] = "testing_with_rate_limits"
+    
+    # Create tables in our test database
+    Base.metadata.create_all(bind=engine)
+    
+    def override_get_db():
+        try:
+            db = TestingSessionLocal()
+            yield db
+        finally:
+            db.close()
+    
+    app.dependency_overrides[get_db] = override_get_db
+    
+    # DO NOT override rate limiting - let it run with real limits but reasonable timeouts
+    
+    with TestClient(app) as test_client:
+        yield test_client
+    
+    # Cleanup
+    app.dependency_overrides.clear()
+    Base.metadata.drop_all(bind=engine)
+    
+    # Restore original environment
+    if original_env:
+        os.environ["ENVIRONMENT"] = original_env
+    elif "ENVIRONMENT" in os.environ:
+        del os.environ["ENVIRONMENT"]

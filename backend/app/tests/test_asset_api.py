@@ -20,10 +20,13 @@ class TestAssetValidationAPI:
     @pytest.fixture
     def authenticated_client(self, client: TestClient, db_session: Session):
         """Create authenticated client with test user"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         test_user = User(
             id="asset-test-user-1",
             email="asset@example.com",
-            hashed_password="hashed_password",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
             full_name="Asset Test User",
             role=UserRole.USER,
             subscription_tier=SubscriptionTier.PRO,
@@ -394,10 +397,13 @@ class TestAssetSearchAPI:
     @pytest.fixture
     def authenticated_client(self, client: TestClient, db_session: Session):
         """Create authenticated client"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         test_user = User(
             id="search-test-user-1",
             email="search@example.com",
-            hashed_password="hashed_password",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
             full_name="Search Test User",
             role=UserRole.USER,
             subscription_tier=SubscriptionTier.FREE,
@@ -617,10 +623,13 @@ class TestAssetInfoAPI:
     @pytest.fixture
     def authenticated_client(self, client: TestClient, db_session: Session):
         """Create authenticated client"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         test_user = User(
             id="info-test-user-1",
             email="info@example.com",
-            hashed_password="hashed_password",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
             full_name="Info Test User",
             role=UserRole.USER,
             subscription_tier=SubscriptionTier.PRO,
@@ -869,10 +878,13 @@ class TestSectorsAPI:
     @pytest.fixture
     def authenticated_client(self, client: TestClient, db_session: Session):
         """Create authenticated client"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         test_user = User(
             id="sectors-test-user-1",
             email="sectors@example.com",
-            hashed_password="hashed_password",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
             full_name="Sectors Test User",
             role=UserRole.USER,
             subscription_tier=SubscriptionTier.FREE,
@@ -953,10 +965,13 @@ class TestAssetAPIAIFriendlyResponses:
     @pytest.fixture
     def authenticated_client(self, client: TestClient, db_session: Session):
         """Create authenticated client"""
+        from app.core.security import AuthService
+        auth_service = AuthService()
+        
         test_user = User(
             id="ai-test-user-1",
             email="ai@example.com",
-            hashed_password="hashed_password",
+            hashed_password=auth_service.get_password_hash("SecureTestPassword2025!"),
             full_name="AI Test User",
             role=UserRole.USER,
             subscription_tier=SubscriptionTier.PRO,
