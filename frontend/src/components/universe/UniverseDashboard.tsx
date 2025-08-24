@@ -22,22 +22,39 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
 
   // Load universes on component mount
   useEffect(() => {
-    loadUniverses();
+    // Small delay to ensure token is set in development
+    if (process.env.NODE_ENV === 'development') {
+      setTimeout(() => {
+        console.log('🔄 UniverseDashboard: Checking token before loading universes...');
+        console.log('🔍 Token exists:', !!localStorage.getItem('access_token'));
+        loadUniverses();
+      }, 500);
+    } else {
+      loadUniverses();
+    }
   }, []);
 
   const loadUniverses = async () => {
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('🌐 Making API call to load universes...');
+      console.log('🔑 Token being used:', localStorage.getItem('access_token')?.substring(0, 50) + '...');
+      
       const result = await universeAPI.list();
+      
+      console.log('📊 API Response:', result);
       
       if (result.success && result.data) {
         setUniverses(result.data);
+        console.log('✅ Universes loaded successfully:', result.data.length);
       } else {
+        console.error('❌ API returned error:', result.message);
         setError(result.message || 'Failed to load universes');
       }
     } catch (error) {
-      console.error('Failed to load universes:', error);
+      console.error('❌ Network/API Error:', error);
       setError('Network error loading universes');
     } finally {
       setLoading(false);

@@ -10,8 +10,8 @@ import {
   ProgressUpdate 
 } from '../types';
 
-// API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// API Configuration - use proxy in development, direct URL in production
+const API_BASE_URL = process.env.NODE_ENV === 'development' ? '' : (process.env.REACT_APP_API_URL || 'http://localhost:8000');
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -35,10 +35,9 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired, redirect to login
+      // Token expired, clear tokens but let React handle routing
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
-      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

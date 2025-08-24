@@ -71,16 +71,22 @@ export interface User {
   id: string;
   email: string;
   full_name?: string;
+  role: string;
   subscription_tier: 'free' | 'pro' | 'enterprise';
   is_verified: boolean;
   created_at: string;
 }
 
 // Authentication Types
-export interface AuthResponse extends ServiceResult<User> {
+export interface AuthResponse {
+  success: boolean;
   access_token?: string;
   refresh_token?: string;
   token_type?: string;
+  expires_in?: number;
+  user?: User;
+  message?: string;
+  next_actions?: string[];
 }
 
 // Component Props Types
