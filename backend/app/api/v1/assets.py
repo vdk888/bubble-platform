@@ -2,6 +2,7 @@
 Asset Search and Validation API Endpoints.
 Following Phase 2 Step 4 specifications with AI-friendly response format.
 """
+import logging
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.orm import Session
@@ -18,6 +19,7 @@ from ...services.interfaces.base import ServiceResult
 # Rate limiting configuration for validation endpoints
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Request/Response Models
 class AssetValidationRequest(BaseModel):
@@ -97,7 +99,16 @@ class AISectorsResponse(BaseModel):
 # Service dependency
 def get_asset_validation_service() -> AssetValidationService:
     """Create AssetValidationService with default providers and Redis client"""
-    return AssetValidationService()
+    try:
+        print("🔧 DEBUG: Creating AssetValidationService instance...")
+        service = AssetValidationService()
+        print("🔧 DEBUG: AssetValidationService created successfully")
+        return service
+    except Exception as e:
+        print(f"🚨 DEBUG: Failed to create AssetValidationService: {e}")
+        import traceback
+        print(f"🚨 DEBUG: Traceback: {traceback.format_exc()}")
+        raise
 
 @router.post("/validate", response_model=AIValidationResponse, summary="Bulk asset validation")
 @limiter.limit("5/minute")  # Rate limiting for validation endpoint
@@ -225,16 +236,16 @@ async def validate_assets(
 
 @router.get("/search", response_model=AISearchResponse, summary="Search assets by name or symbol")
 async def search_assets(
-    query: str = Query(..., description="Search query (name or symbol)"),
+    query: str = Query(..., description="Search query (name or symbol)", min_length=2),
     sector: Optional[str] = Query(None, description="Filter by sector"),
     limit: int = Query(10, ge=1, le=50, description="Maximum results (1-50)"),
     # Multi-metric filtering parameters (Sprint 2 Step 1)
-    market_cap_min: Optional[float] = Query(None, description="Minimum market cap in USD"),
-    market_cap_max: Optional[float] = Query(None, description="Maximum market cap in USD"),
-    pe_ratio_min: Optional[float] = Query(None, description="Minimum P/E ratio"),
-    pe_ratio_max: Optional[float] = Query(None, description="Maximum P/E ratio"),
-    dividend_yield_min: Optional[float] = Query(None, description="Minimum dividend yield (decimal)"),
-    dividend_yield_max: Optional[float] = Query(None, description="Maximum dividend yield (decimal)"),
+    market_cap_min: Optional[float] = Query(None, description="Minimum market cap in USD", ge=0),
+    market_cap_max: Optional[float] = Query(None, description="Maximum market cap in USD", ge=0),
+    pe_ratio_min: Optional[float] = Query(None, description="Minimum P/E ratio", ge=0),
+    pe_ratio_max: Optional[float] = Query(None, description="Maximum P/E ratio", ge=0),
+    dividend_yield_min: Optional[float] = Query(None, description="Minimum dividend yield (decimal)", ge=0, le=1),
+    dividend_yield_max: Optional[float] = Query(None, description="Maximum dividend yield (decimal)", ge=0, le=1),
     current_user: User = Depends(get_current_user),
     asset_service: AssetValidationService = Depends(get_asset_validation_service)
 ):
@@ -248,61 +259,85 @@ async def search_assets(
     - AI-friendly response format
     - Supports User Story 2: "Screener allows filtering by multiple metrics"
     """
+    logger.info(f"🔍 ASSET SEARCH: query='{query}', sector='{sector}', limit={limit}")
+    logger.info(f"🔍 FILTERS: market_cap_min={market_cap_min}, market_cap_max={market_cap_max}")
+    
     if len(query.strip()) < 2:
+        print(f"🚨 DEBUG: Query too short: '{query}' (length: {len(query.strip())})")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Search query must be at least 2 characters"
         )
     
-    # This would integrate with the actual search service
-    # For now, using validation service as placeholder
+    # Try the exact symbol first, then variations if needed
     search_symbols = [query.upper()]
     if len(query) <= 4:
-        # Add common variations for short queries
+        # Add common variations for short queries (only if exact match fails)
         search_symbols.extend([
             f"{query.upper()}.TO",  # Toronto Stock Exchange
             f"{query.upper()}.L",   # London Stock Exchange
         ])
     
+    logger.info(f"🔍 SEARCHING: Will try symbols in order: {search_symbols}")
+    
     results = []
     for symbol in search_symbols[:limit]:
-        validation_result = await asset_service.validate_symbol_mixed_strategy(symbol)
-        if validation_result.success and validation_result.data.is_valid:
-            asset_info = validation_result.data.asset_info
-            if asset_info:
-                # Apply sector filter if specified
-                if sector and asset_info.sector and sector.lower() not in asset_info.sector.lower():
-                    continue
+        try:
+            logger.info(f"🔍 VALIDATING: symbol '{symbol}'")
+            validation_result = await asset_service.validate_symbol_mixed_strategy(symbol)
+            logger.info(f"🔍 RESULT: '{symbol}' -> success={validation_result.success}, valid={validation_result.data.is_valid if validation_result.success else 'N/A'}")
+            
+            if validation_result.success and validation_result.data.is_valid:
+                asset_info = validation_result.data.asset_info
+                if asset_info:
+                    # Apply sector filter if specified
+                    if sector and asset_info.sector and sector.lower() not in asset_info.sector.lower():
+                        continue
                 
-                # Apply multi-metric filters (Sprint 2 Step 1)
-                if market_cap_min is not None and (asset_info.market_cap is None or asset_info.market_cap < market_cap_min):
-                    continue
-                if market_cap_max is not None and (asset_info.market_cap is None or asset_info.market_cap > market_cap_max):
-                    continue
-                if pe_ratio_min is not None and (asset_info.pe_ratio is None or asset_info.pe_ratio < pe_ratio_min):
-                    continue
-                if pe_ratio_max is not None and (asset_info.pe_ratio is None or asset_info.pe_ratio > pe_ratio_max):
-                    continue
-                if dividend_yield_min is not None and (asset_info.dividend_yield is None or asset_info.dividend_yield < dividend_yield_min):
-                    continue
-                if dividend_yield_max is not None and (asset_info.dividend_yield is None or asset_info.dividend_yield > dividend_yield_max):
-                    continue
+                    # Apply multi-metric filters (Sprint 2 Step 1)
+                    if market_cap_min is not None and (asset_info.market_cap is None or asset_info.market_cap < market_cap_min):
+                        continue
+                    if market_cap_max is not None and (asset_info.market_cap is None or asset_info.market_cap > market_cap_max):
+                        continue
+                    if pe_ratio_min is not None and (asset_info.pe_ratio is None or asset_info.pe_ratio < pe_ratio_min):
+                        continue
+                    if pe_ratio_max is not None and (asset_info.pe_ratio is None or asset_info.pe_ratio > pe_ratio_max):
+                        continue
+                    if dividend_yield_min is not None and (asset_info.dividend_yield is None or asset_info.dividend_yield < dividend_yield_min):
+                        continue
+                    if dividend_yield_max is not None and (asset_info.dividend_yield is None or asset_info.dividend_yield > dividend_yield_max):
+                        continue
+                        
+                    results.append(AssetInfo(
+                        symbol=asset_info.symbol,
+                        name=asset_info.name,
+                        sector=asset_info.sector,
+                        industry=asset_info.industry,
+                        market_cap=asset_info.market_cap,
+                        pe_ratio=asset_info.pe_ratio,
+                        dividend_yield=asset_info.dividend_yield,
+                        is_validated=asset_info.is_valid,
+                        last_validated_at=asset_info.last_updated.isoformat() if asset_info.last_updated else None,
+                        validation_source="search_validation"
+                    ))
                     
-                results.append(AssetInfo(
-                    symbol=asset_info.symbol,
-                    name=asset_info.name,
-                    sector=asset_info.sector,
-                    industry=asset_info.industry,
-                    market_cap=asset_info.market_cap,
-                    pe_ratio=asset_info.pe_ratio,
-                    dividend_yield=asset_info.dividend_yield,
-                    is_validated=asset_info.is_valid,
-                    last_validated_at=asset_info.last_updated.isoformat() if asset_info.last_updated else None,
-                    validation_source="search_validation"
-                ))
+                    logger.info(f"✅ FOUND: Added '{symbol}' to results")
+                    
+                    # If we found a valid result for the exact query, stop trying variations
+                    if symbol == query.upper():
+                        logger.info(f"🎯 EXACT MATCH: Found exact match for '{query}', stopping search")
+                        break
+                        
+        except Exception as e:
+            logger.error(f"🚨 VALIDATION ERROR: '{symbol}' -> {e}")
+            # Continue to next symbol instead of failing entire search
+            continue
         
         if len(results) >= limit:
+            logger.info(f"📊 LIMIT REACHED: Found {len(results)} results, stopping search")
             break
+    
+    logger.info(f"🏁 SEARCH COMPLETE: Found {len(results)} results for '{query}'")
     
     search_result = AssetSearchResult(
         total_results=len(results),

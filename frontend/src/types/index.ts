@@ -60,10 +60,14 @@ export interface BulkValidationResult {
 
 // Search Types
 export interface AssetSearchResult {
-  assets: Asset[];
-  total_count: number;
-  page: number;
-  per_page: number;
+  total_results: number;
+  results: Asset[];
+  search_query: string;
+  search_metadata: {
+    sector_filter?: string;
+    result_limit: number;
+    search_variations_tried: number;
+  };
 }
 
 // User Types

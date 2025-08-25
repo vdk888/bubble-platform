@@ -186,7 +186,7 @@ export const assetAPI = {
     limit: number = 20, 
     filters?: Record<string, any>
   ): Promise<ServiceResult<AssetSearchResult>> => {
-    const params: Record<string, any> = { q: query, limit };
+    const params: Record<string, any> = { query: query, limit };
     if (sector) params.sector = sector;
     
     // Add multi-metric filters (Sprint 2 Step 1)

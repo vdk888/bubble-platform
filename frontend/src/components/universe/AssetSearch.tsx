@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SearchIcon, XIcon, CheckCircleIcon, XCircleIcon, ClockIcon } from 'lucide-react';
 import { Asset, AssetSearchProps, ValidationResult } from '../../types';
-import { assetAPI } from '../../services/api';
+import { assetAPI } from '../../services/api'; // Fixed parameter bug: q -> query
 
 interface AssetSearchModalProps extends AssetSearchProps {
   onClose: () => void;
@@ -75,6 +75,15 @@ const AssetSearch: React.FC<AssetSearchModalProps> = ({
       setLoading(true);
       setError(null);
       
+      console.log('🔍 DEBUG: Filter state values:', {
+        marketCapMin,
+        marketCapMax,
+        peRatioMin,
+        peRatioMax,
+        dividendYieldMin,
+        dividendYieldMax
+      });
+      
       // Build filter parameters for multi-metric search (Sprint 2 Step 1)
       const filters: any = {};
       
@@ -82,29 +91,33 @@ const AssetSearch: React.FC<AssetSearchModalProps> = ({
         filters.sector = selectedSector;
       }
       
-      // Market cap filtering (in billions)
-      if (marketCapMin && !isNaN(parseFloat(marketCapMin))) {
+      // Market cap filtering (in billions) - only send if non-empty and valid
+      if (marketCapMin && marketCapMin.trim() !== '' && !isNaN(parseFloat(marketCapMin))) {
         filters.marketCapMin = parseFloat(marketCapMin) * 1e9; // Convert billions to actual value
+        console.log('🔍 DEBUG: Setting marketCapMin filter:', parseFloat(marketCapMin), '-> ', filters.marketCapMin);
       }
-      if (marketCapMax && !isNaN(parseFloat(marketCapMax))) {
+      if (marketCapMax && marketCapMax.trim() !== '' && !isNaN(parseFloat(marketCapMax))) {
         filters.marketCapMax = parseFloat(marketCapMax) * 1e9;
+        console.log('🔍 DEBUG: Setting marketCapMax filter:', parseFloat(marketCapMax), '-> ', filters.marketCapMax);
       }
       
-      // P/E ratio filtering
-      if (peRatioMin && !isNaN(parseFloat(peRatioMin))) {
+      // P/E ratio filtering - only send if non-empty and valid
+      if (peRatioMin && peRatioMin.trim() !== '' && !isNaN(parseFloat(peRatioMin))) {
         filters.peRatioMin = parseFloat(peRatioMin);
       }
-      if (peRatioMax && !isNaN(parseFloat(peRatioMax))) {
+      if (peRatioMax && peRatioMax.trim() !== '' && !isNaN(parseFloat(peRatioMax))) {
         filters.peRatioMax = parseFloat(peRatioMax);
       }
       
-      // Dividend yield filtering (as percentage)
-      if (dividendYieldMin && !isNaN(parseFloat(dividendYieldMin))) {
+      // Dividend yield filtering (as percentage) - only send if non-empty and valid
+      if (dividendYieldMin && dividendYieldMin.trim() !== '' && !isNaN(parseFloat(dividendYieldMin))) {
         filters.dividendYieldMin = parseFloat(dividendYieldMin) / 100; // Convert percentage to decimal
       }
-      if (dividendYieldMax && !isNaN(parseFloat(dividendYieldMax))) {
+      if (dividendYieldMax && dividendYieldMax.trim() !== '' && !isNaN(parseFloat(dividendYieldMax))) {
         filters.dividendYieldMax = parseFloat(dividendYieldMax) / 100;
       }
+      
+      console.log('🔍 DEBUG: Final filters object:', filters);
       
       const result = await assetAPI.search(
         searchQuery, 
@@ -114,7 +127,7 @@ const AssetSearch: React.FC<AssetSearchModalProps> = ({
       );
 
       if (result.success && result.data) {
-        const assets = result.data.assets || [];
+        const assets = result.data.results || [];
         setSearchResults(assets);
 
         // Validate the found assets
