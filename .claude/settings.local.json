@@ -1,9 +1,11 @@
 {
-  "enableAllProjectMcpServers": false,
-  "outputStyle": "Explanatory",
   "permissions": {
     "allow": [
-      "Bash(docker-compose logs:*)"
+      "Bash(docker-compose logs:*)",
+      "Bash(python:*)",
+      "Read(/C:\\c\\Users\\Warren\\Documents\\bubble-platform/**)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": false,
+  "outputStyle": "Explanatory"
 }
