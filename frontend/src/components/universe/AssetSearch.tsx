@@ -151,12 +151,8 @@ const AssetSearch: React.FC<AssetSearchModalProps> = ({
   const validateAssets = async (symbols: string[]) => {
     try {
       const result = await assetAPI.validate(symbols);
-      if (result.success && result.data) {
-        const validationMap: Record<string, ValidationResult> = {};
-        result.data.forEach(validation => {
-          validationMap[validation.symbol] = validation;
-        });
-        setValidationResults(validationMap);
+      if (result.success && result.data && result.data.validation_results) {
+        setValidationResults(result.data.validation_results);
       }
     } catch (error) {
       console.error('Validation failed:', error);
@@ -408,7 +404,7 @@ const AssetSearch: React.FC<AssetSearchModalProps> = ({
             <div className="space-y-2">
               {searchResults.map((asset) => (
                 <div
-                  key={asset.id}
+                  key={asset.symbol}
                   onClick={() => handleAssetSelect(asset)}
                   className={`cursor-pointer p-4 bg-white rounded-lg border transition-colors ${
                     isAssetSelected(asset)

@@ -121,8 +121,8 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
             results.push({
               success: true,
               universe_name: universeName,
-              added_count: bulkResult.valid_count,
-              failed_symbols: bulkResult.results
+              added_count: bulkResult.valid_symbols,
+              failed_symbols: Object.values(bulkResult.validation_results)
                 .filter(r => !r.is_valid)
                 .map(r => r.symbol)
             });

@@ -73,14 +73,12 @@ const UniverseEditor: React.FC<UniverseEditorProps> = ({
     try {
       const result = await assetAPI.validate(newUniqueSymbols);
       if (result.success && result.data) {
-        const validationMap: Record<string, ValidationResult> = {};
-        result.data.forEach(validation => {
-          validationMap[validation.symbol] = validation;
-        });
+        const validationMap = result.data.validation_results;
         setValidationResults(prev => ({ ...prev, ...validationMap }));
 
         // Create temporary Asset objects for valid symbols
-        const newAssets: Asset[] = result.data
+        const validationResults = Object.values(result.data.validation_results);
+        const newAssets: Asset[] = validationResults
           .filter(v => v.is_valid)
           .map(validation => ({
             id: `temp_${validation.symbol}`, // Temporary ID
@@ -101,7 +99,7 @@ const UniverseEditor: React.FC<UniverseEditorProps> = ({
         setNewSymbols('');
 
         // Show validation results for invalid symbols
-        const invalidSymbols = result.data.filter(v => !v.is_valid);
+        const invalidSymbols = validationResults.filter(v => !v.is_valid);
         if (invalidSymbols.length > 0) {
           setError(`Invalid symbols: ${invalidSymbols.map(v => v.symbol).join(', ')}`);
         }

@@ -52,10 +52,11 @@ export interface ValidationResult {
 
 export interface BulkValidationResult {
   total_symbols: number;
-  valid_count: number;
-  invalid_count: number;
-  pending_count: number;
-  results: ValidationResult[];
+  valid_symbols: number;
+  invalid_symbols: number;
+  cached_results: number;
+  real_time_validations: number;
+  validation_results: Record<string, ValidationResult>;
 }
 
 // Search Types

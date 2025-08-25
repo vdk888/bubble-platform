@@ -208,7 +208,7 @@ export const assetAPI = {
     return response.data;
   },
 
-  validate: async (symbols: string[]): Promise<ServiceResult<ValidationResult[]>> => {
+  validate: async (symbols: string[]): Promise<ServiceResult<BulkValidationResult>> => {
     const response = await apiClient.post('/api/v1/assets/validate', { symbols });
     return response.data;
   },
