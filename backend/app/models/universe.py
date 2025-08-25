@@ -16,9 +16,6 @@ class Universe(BaseModel):
     name = Column(String(100), nullable=False)
     description = Column(Text)
     
-    # DEPRECATED: symbols field - kept temporarily for migration compatibility
-    # Will be removed after successful migration to Asset relationships
-    symbols = Column(JSON, nullable=True)  # Made nullable for migration
     
     # Dynamic screening criteria
     screening_criteria = Column(JSON)  # Flexible screening rules
@@ -45,16 +42,11 @@ class Universe(BaseModel):
     
     def get_symbols(self) -> List[str]:
         """
-        Get current universe symbols - updated for Asset relationships.
-        Falls back to legacy JSON symbols during migration period.
+        Get current universe symbols from Asset relationships.
         """
-        # New normalized approach - get symbols from Asset relationships
+        # Get symbols from normalized Asset relationships
         if self.asset_associations:
             return [assoc.asset.symbol for assoc in self.asset_associations if assoc.asset]
-        
-        # Legacy fallback during migration
-        if self.symbols and isinstance(self.symbols, list):
-            return self.symbols
             
         return []
     
@@ -96,20 +88,6 @@ class Universe(BaseModel):
         
         return len(symmetric_diff) / len(union_set)
     
-    def update_symbols(self, new_symbols: List[str]):
-        """
-        LEGACY METHOD - kept for backward compatibility during migration.
-        New code should use UniverseService.add_assets_to_universe() instead.
-        """
-        # Calculate turnover for legacy method
-        if self.symbols:
-            old_set = set(self.get_symbols())
-            new_set = set(new_symbols)
-            if old_set.union(new_set):  # Avoid division by zero
-                self.turnover_rate = len(old_set.symmetric_difference(new_set)) / len(old_set.union(new_set))
-        
-        self.symbols = new_symbols
-        self.last_screening_date = datetime.now(timezone.utc)
     
     def to_dict(self) -> Dict[str, Any]:
         """Enhanced to_dict with asset relationship data"""

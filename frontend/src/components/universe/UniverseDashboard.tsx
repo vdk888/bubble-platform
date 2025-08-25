@@ -6,6 +6,7 @@ import UniverseTable from './UniverseTable';
 import UniverseEditor from './UniverseEditor';
 import AssetSearch from './AssetSearch';
 import BulkOperations from './BulkOperations';
+import UniverseAssetTable from './UniverseAssetTable';
 
 const UniverseDashboard: React.FC<UniverseDashboardProps> = ({ 
   chatMode = false, 
@@ -272,34 +273,11 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Asset List */}
-              {selectedUniverse.assets && selectedUniverse.assets.length > 0 && (
-                <div className="mt-6">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Assets</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {selectedUniverse.assets.map((asset) => (
-                      <div key={asset.id} className="bg-white border border-gray-200 rounded-lg p-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-medium text-gray-900">{asset.symbol}</div>
-                            <div className="text-sm text-gray-500 truncate">{asset.name}</div>
-                          </div>
-                          <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            asset.is_validated 
-                              ? 'bg-success-50 text-success-800'
-                              : 'bg-warning-50 text-warning-800'
-                          }`}>
-                            {asset.is_validated ? 'Validated' : 'Pending'}
-                          </div>
-                        </div>
-                        {asset.sector && (
-                          <div className="text-xs text-gray-400 mt-1">{asset.sector}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Asset Table with Inline Editing (Sprint 2 Step 2) */}
+              <UniverseAssetTable
+                universe={selectedUniverse}
+                onUniverseUpdate={loadUniverses}
+              />
             </div>
           </div>
         )}

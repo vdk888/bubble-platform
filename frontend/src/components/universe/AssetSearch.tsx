@@ -22,6 +22,15 @@ const AssetSearch: React.FC<AssetSearchModalProps> = ({
   const [sectors, setSectors] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const searchTimeout = useRef<NodeJS.Timeout>();
+  
+  // Multi-metric filtering state (Sprint 2 Step 1 implementation)
+  const [marketCapMin, setMarketCapMin] = useState<string>('');
+  const [marketCapMax, setMarketCapMax] = useState<string>('');
+  const [peRatioMin, setPeRatioMin] = useState<string>('');
+  const [peRatioMax, setPeRatioMax] = useState<string>('');
+  const [dividendYieldMin, setDividendYieldMin] = useState<string>('');
+  const [dividendYieldMax, setDividendYieldMax] = useState<string>('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
 
   // Load sectors on component mount
   useEffect(() => {
@@ -48,7 +57,7 @@ const AssetSearch: React.FC<AssetSearchModalProps> = ({
         clearTimeout(searchTimeout.current);
       }
     };
-  }, [query, selectedSector]);
+  }, [query, selectedSector, marketCapMin, marketCapMax, peRatioMin, peRatioMax, dividendYieldMin, dividendYieldMax]);
 
   const loadSectors = async () => {
     try {
@@ -66,10 +75,42 @@ const AssetSearch: React.FC<AssetSearchModalProps> = ({
       setLoading(true);
       setError(null);
       
+      // Build filter parameters for multi-metric search (Sprint 2 Step 1)
+      const filters: any = {};
+      
+      if (selectedSector) {
+        filters.sector = selectedSector;
+      }
+      
+      // Market cap filtering (in billions)
+      if (marketCapMin && !isNaN(parseFloat(marketCapMin))) {
+        filters.marketCapMin = parseFloat(marketCapMin) * 1e9; // Convert billions to actual value
+      }
+      if (marketCapMax && !isNaN(parseFloat(marketCapMax))) {
+        filters.marketCapMax = parseFloat(marketCapMax) * 1e9;
+      }
+      
+      // P/E ratio filtering
+      if (peRatioMin && !isNaN(parseFloat(peRatioMin))) {
+        filters.peRatioMin = parseFloat(peRatioMin);
+      }
+      if (peRatioMax && !isNaN(parseFloat(peRatioMax))) {
+        filters.peRatioMax = parseFloat(peRatioMax);
+      }
+      
+      // Dividend yield filtering (as percentage)
+      if (dividendYieldMin && !isNaN(parseFloat(dividendYieldMin))) {
+        filters.dividendYieldMin = parseFloat(dividendYieldMin) / 100; // Convert percentage to decimal
+      }
+      if (dividendYieldMax && !isNaN(parseFloat(dividendYieldMax))) {
+        filters.dividendYieldMax = parseFloat(dividendYieldMax) / 100;
+      }
+      
       const result = await assetAPI.search(
         searchQuery, 
         selectedSector || undefined,
-        20
+        20,
+        filters // Pass additional filters
       );
 
       if (result.success && result.data) {
@@ -204,6 +245,124 @@ const AssetSearch: React.FC<AssetSearchModalProps> = ({
                 ))}
               </select>
             </div>
+
+            {/* Advanced Filters Toggle */}
+            <div className="mt-3">
+              <button
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="text-sm text-primary-600 hover:text-primary-800 font-medium"
+              >
+                {showAdvancedFilters ? '▼ Hide Advanced Filters' : '▶ Show Advanced Filters'}
+              </button>
+            </div>
+
+            {/* Advanced Filters Panel (Sprint 2 Step 1: Multi-metric filtering) */}
+            {showAdvancedFilters && (
+              <div className="mt-3 bg-gray-50 p-4 rounded-lg border">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Advanced Filters</h4>
+                
+                {/* Market Cap Filter */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Market Cap (Billions USD)
+                  </label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="number"
+                      placeholder="Min"
+                      value={marketCapMin}
+                      onChange={(e) => setMarketCapMin(e.target.value)}
+                      className="input-field text-sm flex-1"
+                      min="0"
+                      step="0.1"
+                    />
+                    <span className="text-gray-500 self-center">-</span>
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      value={marketCapMax}
+                      onChange={(e) => setMarketCapMax(e.target.value)}
+                      className="input-field text-sm flex-1"
+                      min="0"
+                      step="0.1"
+                    />
+                  </div>
+                </div>
+
+                {/* P/E Ratio Filter */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    P/E Ratio
+                  </label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="number"
+                      placeholder="Min"
+                      value={peRatioMin}
+                      onChange={(e) => setPeRatioMin(e.target.value)}
+                      className="input-field text-sm flex-1"
+                      min="0"
+                      step="0.1"
+                    />
+                    <span className="text-gray-500 self-center">-</span>
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      value={peRatioMax}
+                      onChange={(e) => setPeRatioMax(e.target.value)}
+                      className="input-field text-sm flex-1"
+                      min="0"
+                      step="0.1"
+                    />
+                  </div>
+                </div>
+
+                {/* Dividend Yield Filter */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Dividend Yield (%)
+                  </label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="number"
+                      placeholder="Min"
+                      value={dividendYieldMin}
+                      onChange={(e) => setDividendYieldMin(e.target.value)}
+                      className="input-field text-sm flex-1"
+                      min="0"
+                      max="20"
+                      step="0.1"
+                    />
+                    <span className="text-gray-500 self-center">-</span>
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      value={dividendYieldMax}
+                      onChange={(e) => setDividendYieldMax(e.target.value)}
+                      className="input-field text-sm flex-1"
+                      min="0"
+                      max="20"
+                      step="0.1"
+                    />
+                  </div>
+                </div>
+
+                {/* Clear Filters Button */}
+                <button
+                  onClick={() => {
+                    setMarketCapMin('');
+                    setMarketCapMax('');
+                    setPeRatioMin('');
+                    setPeRatioMax('');
+                    setDividendYieldMin('');
+                    setDividendYieldMax('');
+                  }}
+                  className="text-xs text-gray-600 hover:text-gray-800"
+                >
+                  Clear Advanced Filters
+                </button>
+              </div>
+            )}
 
             {/* Error Message */}
             {error && (

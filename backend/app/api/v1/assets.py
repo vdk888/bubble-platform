@@ -95,8 +95,9 @@ class AISectorsResponse(BaseModel):
     metadata: Dict[str, Any] = {}
 
 # Service dependency
-def get_asset_validation_service(db: Session = Depends(get_db)) -> AssetValidationService:
-    return AssetValidationService(db)
+def get_asset_validation_service() -> AssetValidationService:
+    """Create AssetValidationService with default providers and Redis client"""
+    return AssetValidationService()
 
 @router.post("/validate", response_model=AIValidationResponse, summary="Bulk asset validation")
 @limiter.limit("5/minute")  # Rate limiting for validation endpoint
@@ -227,17 +228,25 @@ async def search_assets(
     query: str = Query(..., description="Search query (name or symbol)"),
     sector: Optional[str] = Query(None, description="Filter by sector"),
     limit: int = Query(10, ge=1, le=50, description="Maximum results (1-50)"),
+    # Multi-metric filtering parameters (Sprint 2 Step 1)
+    market_cap_min: Optional[float] = Query(None, description="Minimum market cap in USD"),
+    market_cap_max: Optional[float] = Query(None, description="Maximum market cap in USD"),
+    pe_ratio_min: Optional[float] = Query(None, description="Minimum P/E ratio"),
+    pe_ratio_max: Optional[float] = Query(None, description="Maximum P/E ratio"),
+    dividend_yield_min: Optional[float] = Query(None, description="Minimum dividend yield (decimal)"),
+    dividend_yield_max: Optional[float] = Query(None, description="Maximum dividend yield (decimal)"),
     current_user: User = Depends(get_current_user),
     asset_service: AssetValidationService = Depends(get_asset_validation_service)
 ):
     """
-    Search for assets by name or symbol with optional sector filtering.
+    Search for assets by name or symbol with advanced multi-metric filtering.
     
     Features:
     - Full-text search across asset names and symbols
-    - Sector-based filtering
-    - Cached results for performance
+    - Multi-metric filtering: sector, market cap, P/E ratio, dividend yield
+    - Cached results for performance  
     - AI-friendly response format
+    - Supports User Story 2: "Screener allows filtering by multiple metrics"
     """
     if len(query.strip()) < 2:
         raise HTTPException(
@@ -263,6 +272,20 @@ async def search_assets(
             if asset_info:
                 # Apply sector filter if specified
                 if sector and asset_info.sector and sector.lower() not in asset_info.sector.lower():
+                    continue
+                
+                # Apply multi-metric filters (Sprint 2 Step 1)
+                if market_cap_min is not None and (asset_info.market_cap is None or asset_info.market_cap < market_cap_min):
+                    continue
+                if market_cap_max is not None and (asset_info.market_cap is None or asset_info.market_cap > market_cap_max):
+                    continue
+                if pe_ratio_min is not None and (asset_info.pe_ratio is None or asset_info.pe_ratio < pe_ratio_min):
+                    continue
+                if pe_ratio_max is not None and (asset_info.pe_ratio is None or asset_info.pe_ratio > pe_ratio_max):
+                    continue
+                if dividend_yield_min is not None and (asset_info.dividend_yield is None or asset_info.dividend_yield < dividend_yield_min):
+                    continue
+                if dividend_yield_max is not None and (asset_info.dividend_yield is None or asset_info.dividend_yield > dividend_yield_max):
                     continue
                     
                 results.append(AssetInfo(

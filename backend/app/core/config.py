@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     alpaca_api_key: str
     alpaca_secret_key: str
     yahoo_finance_api_key: Optional[str] = None
+    alpha_vantage_api_key: Optional[str] = None
     
     # Authentication
     jwt_algorithm: str = "HS256"

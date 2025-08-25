@@ -180,9 +180,24 @@ export const universeAPI = {
 
 // Asset API
 export const assetAPI = {
-  search: async (query: string, sector?: string, limit: number = 20): Promise<ServiceResult<AssetSearchResult>> => {
+  search: async (
+    query: string, 
+    sector?: string, 
+    limit: number = 20, 
+    filters?: Record<string, any>
+  ): Promise<ServiceResult<AssetSearchResult>> => {
     const params: Record<string, any> = { q: query, limit };
     if (sector) params.sector = sector;
+    
+    // Add multi-metric filters (Sprint 2 Step 1)
+    if (filters) {
+      if (filters.marketCapMin !== undefined) params.market_cap_min = filters.marketCapMin;
+      if (filters.marketCapMax !== undefined) params.market_cap_max = filters.marketCapMax;
+      if (filters.peRatioMin !== undefined) params.pe_ratio_min = filters.peRatioMin;
+      if (filters.peRatioMax !== undefined) params.pe_ratio_max = filters.peRatioMax;
+      if (filters.dividendYieldMin !== undefined) params.dividend_yield_min = filters.dividendYieldMin;
+      if (filters.dividendYieldMax !== undefined) params.dividend_yield_max = filters.dividendYieldMax;
+    }
     
     const response = await apiClient.get('/api/v1/assets/search', { params });
     return response.data;

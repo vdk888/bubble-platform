@@ -109,7 +109,6 @@ class UniverseService:
                 name=name,
                 description=description,
                 owner_id=user_id,
-                symbols=initial_symbols or [],  # Legacy JSON field for backward compatibility
                 screening_criteria={},
                 turnover_rate=0.0
             )

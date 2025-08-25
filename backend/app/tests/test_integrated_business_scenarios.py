@@ -373,7 +373,6 @@ class TestBusinessLogicValidation:
         universe = Universe(
             name="Validated Universe",
             description="Universe with validated assets",
-            symbols=["AAPL", "GOOGL", "MSFT"],
             owner_id=user.id
         )
         db_session.add(universe)
@@ -389,8 +388,8 @@ class TestBusinessLogicValidation:
         db_session.commit()
         
         # Verify business rules
-        assert len(universe.symbols) == 3
-        assert "AAPL" in universe.symbols
+        assert universe.get_asset_count() == 1
+        assert "AAPL" in universe.get_symbols()
         assert asset.is_validated is True
         assert universe_asset.position == 1
     
@@ -410,7 +409,6 @@ class TestBusinessLogicValidation:
         universe = Universe(
             name="Strategy Universe",
             description="Universe for strategy testing",
-            symbols=["AAPL", "GOOGL", "MSFT"],
             owner_id=user.id
         )
         db_session.add(universe)

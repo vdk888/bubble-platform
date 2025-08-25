@@ -87,7 +87,6 @@ class TestSprint0FoundationRequirements:
         universe = Universe(
             name="Test Universe",
             description="Model relationship test",
-            symbols=["AAPL", "GOOGL", "MSFT"],
             owner_id=user.id
         )
         db_session.add(universe)
@@ -277,7 +276,6 @@ class TestSprint2UniverseManagementRequirements:
         universe = Universe(
             name="Tech Universe",
             description="Technology stocks",
-            symbols=["AAPL", "GOOGL"],  # Traditional symbols list
             owner_id=user.id
         )
         db_session.add(universe)
