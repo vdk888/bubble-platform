@@ -49,16 +49,40 @@ def test_create_universe(db_session: Session):
     universe = Universe(
         name="Tech Stocks",
         description="Technology companies",
-        symbols=["AAPL", "GOOGL", "MSFT"],
         owner_id=user.id
     )
     db_session.add(universe)
     db_session.commit()
     db_session.refresh(universe)
     
+    # Create assets and relationships
+    from app.models.asset import Asset, UniverseAsset
+    
+    assets = [
+        Asset(symbol="AAPL", name="Apple Inc.", sector="Technology", is_validated=True),
+        Asset(symbol="GOOGL", name="Alphabet Inc.", sector="Technology", is_validated=True),
+        Asset(symbol="MSFT", name="Microsoft Corp.", sector="Technology", is_validated=True)
+    ]
+    
+    for asset in assets:
+        db_session.add(asset)
+    db_session.flush()
+    
+    # Create universe-asset relationships
+    for i, asset in enumerate(assets):
+        universe_asset = UniverseAsset(
+            universe_id=universe.id,
+            asset_id=asset.id,
+            position=i + 1
+        )
+        db_session.add(universe_asset)
+    
+    db_session.commit()
+    db_session.refresh(universe)
+    
     assert universe.id is not None
     assert universe.name == "Tech Stocks"
-    assert universe.symbols == ["AAPL", "GOOGL", "MSFT"]
+    assert universe.get_symbols() == ["AAPL", "GOOGL", "MSFT"]
     assert universe.owner_id == user.id
     assert universe.owner.email == "test@example.com"
 
@@ -78,7 +102,6 @@ def test_create_strategy(db_session: Session):
     
     universe = Universe(
         name="Test Universe",
-        symbols=["AAPL", "GOOGL"],
         owner_id=user.id
     )
     db_session.add(universe)

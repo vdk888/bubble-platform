@@ -114,8 +114,7 @@ class TestUniverseAPI:
             id="existing-universe-1",
             name="Duplicate Name",
             description="Existing universe",
-            owner_id=user.id,
-            symbols=[]
+            owner_id=user.id
         )
         db_session.add(existing_universe)
         db_session.commit()
@@ -137,7 +136,6 @@ class TestUniverseAPI:
             name="Test Universe",
             description="Test description",
             owner_id=user.id,
-            symbols=["AAPL", "GOOGL"]
         )
         db_session.add(universe)
         db_session.commit()
@@ -150,7 +148,9 @@ class TestUniverseAPI:
         assert data["data"]["name"] == "Test Universe"
         assert data["data"]["id"] == universe.id
         assert "Retrieved universe 'Test Universe' details" in data["message"]
-        assert "create_strategy_from_universe" in data["next_actions"]
+        # Empty universe should suggest adding assets first
+        assert "add_assets_to_universe" in data["next_actions"]
+        assert "search_assets_by_sector" in data["next_actions"]
     
     def test_get_universe_not_found(self, authenticated_client):
         """Test getting non-existent universe"""
@@ -171,7 +171,6 @@ class TestUniverseAPI:
             name="Old Name",
             description="Old description",
             owner_id=user.id,
-            symbols=[]
         )
         db_session.add(universe)
         db_session.commit()
@@ -202,7 +201,6 @@ class TestUniverseAPI:
             name="Original Name",
             description="Original description",
             owner_id=user.id,
-            symbols=[]
         )
         db_session.add(universe)
         db_session.commit()
@@ -229,7 +227,6 @@ class TestUniverseAPI:
             name="Universe to Delete",
             description="Will be deleted",
             owner_id=user.id,
-            symbols=[]
         )
         db_session.add(universe)
         db_session.commit()
@@ -374,7 +371,6 @@ class TestUniverseAPIPermissions:
             name="User 1 Universe",
             description="Private to user 1",
             owner_id=user1.id,
-            symbols=["AAPL"]
         )
         db_session.add(universe)
         db_session.commit()
@@ -408,7 +404,6 @@ class TestUniverseAPIPermissions:
             name="User 1 Universe",
             description="Private to user 1",
             owner_id=user1.id,
-            symbols=[]
         )
         db_session.add(universe)
         db_session.commit()

@@ -236,7 +236,7 @@ async def validate_assets(
 
 @router.get("/search", response_model=AISearchResponse, summary="Search assets by name or symbol")
 async def search_assets(
-    query: str = Query(..., description="Search query (name or symbol)", min_length=2),
+    query: str = Query(..., description="Search query (name or symbol)"),
     sector: Optional[str] = Query(None, description="Filter by sector"),
     limit: int = Query(10, ge=1, le=50, description="Maximum results (1-50)"),
     # Multi-metric filtering parameters (Sprint 2 Step 1)

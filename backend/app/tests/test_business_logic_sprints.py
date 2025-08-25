@@ -90,13 +90,39 @@ class TestSprint0FoundationRequirements:
             owner_id=user.id
         )
         db_session.add(universe)
+        db_session.flush()
+        
+        # Create assets to test relationships
+        from app.models.asset import Asset, UniverseAsset
+        
+        assets = [
+            Asset(symbol="AAPL", name="Apple Inc.", sector="Technology", is_validated=True),
+            Asset(symbol="GOOGL", name="Alphabet Inc.", sector="Technology", is_validated=True),
+            Asset(symbol="MSFT", name="Microsoft Corp.", sector="Technology", is_validated=True)
+        ]
+        
+        for asset in assets:
+            db_session.add(asset)
+        db_session.flush()
+        
+        # Create universe-asset relationships
+        for i, asset in enumerate(assets):
+            universe_asset = UniverseAsset(
+                universe_id=universe.id,
+                asset_id=asset.id,
+                position=i + 1
+            )
+            db_session.add(universe_asset)
+        
         db_session.commit()
         
         # Verify relationships work
         assert universe.owner_id == user.id
         assert universe.owner.email == "model.test@bubble.com"
-        assert len(universe.symbols) == 3
-        assert "AAPL" in universe.symbols
+        assert len(universe.get_symbols()) == 3  # Use proper method
+        assert "AAPL" in universe.get_symbols()
+        assert "GOOGL" in universe.get_symbols()
+        assert "MSFT" in universe.get_symbols()
 
 
 class TestSprint1AuthenticationRequirements:

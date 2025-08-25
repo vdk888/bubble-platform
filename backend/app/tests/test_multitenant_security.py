@@ -141,7 +141,6 @@ class TestActualMultiTenantIsolation:
             id="universe-a-123",
             name="User A Universe",
             description="Private to User A",
-            symbols=["AAPL", "GOOGL"],
             owner_id=user_a.id
         )
         
@@ -149,7 +148,6 @@ class TestActualMultiTenantIsolation:
             id="universe-b-456", 
             name="User B Universe",
             description="Private to User B",
-            symbols=["MSFT", "TSLA"],
             owner_id=user_b.id
         )
         
@@ -200,8 +198,8 @@ class TestActualMultiTenantIsolation:
         rls_manager.reset_user_context()
         
         # Create universes first (required for strategies)
-        universe_a = Universe(name="Test Universe A", owner_id=user_a.id, symbols=["AAPL"])
-        universe_b = Universe(name="Test Universe B", owner_id=user_b.id, symbols=["MSFT"])
+        universe_a = Universe(name="Test Universe A", owner_id=user_a.id)
+        universe_b = Universe(name="Test Universe B", owner_id=user_b.id)
         db_session.add(universe_a)
         db_session.add(universe_b)
         db_session.flush()  # Get IDs
@@ -417,8 +415,8 @@ class TestActualMultiTenantIsolation:
         # Create data for both users without RLS
         rls_manager.reset_user_context()
         
-        universe_a = Universe(name="A Universe", owner_id=user_a.id, symbols=["AAPL"])
-        universe_b = Universe(name="B Universe", owner_id=user_b.id, symbols=["MSFT"])
+        universe_a = Universe(name="A Universe", owner_id=user_a.id)
+        universe_b = Universe(name="B Universe", owner_id=user_b.id)
         db_session.add(universe_a)
         db_session.add(universe_b)
         db_session.commit()

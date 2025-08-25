@@ -405,8 +405,8 @@ class TestUniverseModelUpdated:
         assert "GOOGL" in symbols
         assert "MSFT" in symbols
     
-    def test_universe_get_symbols_legacy_fallback(self, db_session: Session):
-        """Test Universe.get_symbols() falls back to legacy JSON symbols."""
+    def test_universe_get_symbols_empty_when_no_relationships(self, db_session: Session):
+        """Test Universe.get_symbols() returns empty list when no asset relationships exist."""
         # Create user first to get ID
         from app.core.security import AuthService
         auth_service = AuthService()
@@ -418,19 +418,20 @@ class TestUniverseModelUpdated:
         db_session.commit()
         db_session.refresh(user)
         
-        # Create universe with legacy JSON symbols (no asset relationships)
+        # Create universe with no asset relationships (post-migration behavior)
         universe = Universe(
-            name="Legacy Universe",
-            symbols=["TSLA", "NFLX", "NVDA"],  # Legacy JSON field
+            name="Empty Universe",
+            description="Universe with no assets",
             owner_id=user.id
         )
         db_session.add(universe)
         db_session.commit()
         db_session.refresh(universe)
         
-        # Should fall back to legacy symbols since no asset relationships exist
+        # Should return empty list when no asset relationships exist
         symbols = universe.get_symbols()
-        assert symbols == ["TSLA", "NFLX", "NVDA"]
+        assert symbols == []
+        assert universe.get_asset_count() == 0
     
     def test_universe_get_assets_with_metadata(self, db_session: Session):
         """Test Universe.get_assets() returns full asset data with relationship metadata."""

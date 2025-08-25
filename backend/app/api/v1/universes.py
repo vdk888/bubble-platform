@@ -2,7 +2,7 @@
 Universe Management API Endpoints.
 Following Phase 2 Step 4 specifications with AI-friendly response format.
 """
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -22,6 +22,7 @@ class UniverseResponse(BaseModel):
     description: Optional[str] = None
     asset_count: int
     symbols: List[str]
+    assets: List[Dict[str, Any]] = []
     turnover_rate: Optional[float] = None
     created_at: str
     updated_at: str
