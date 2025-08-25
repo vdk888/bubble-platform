@@ -3,7 +3,25 @@
     "allow": [
       "Bash(docker-compose logs:*)",
       "Bash(python:*)",
-      "Read(/C:\\c\\Users\\Warren\\Documents\\bubble-platform/**)"
+      "Read(/C:\\c\\Users\\Warren\\Documents\\bubble-platform/**)",
+      "Read(/C:\\mnt\\c\\Users\\Warren\\Documents\\bubble-platform/**)",
+      "Read(/C:\\c\\Users\\Warren\\Documents/**)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose run:*)",
+      "Read(/C:\\c\\Users\\Warren\\Documents/**)",
+      "Read(/C:\\c\\Users\\Warren\\Documents/**)",
+      "Read(/C:\\c\\Users\\Warren\\Documents/**)",
+      "Read(/C:\\c\\Users\\Warren\\Documents/**)",
+      "Read(/C:\\c\\Users\\Warren\\Documents/**)",
+      "Read(/C:\\c\\Users\\Warren\\Documents/**)",
+      "Bash(find:*)",
+      "Read(/C:\\c\\Users\\Warren\\Documents\\bubble-platform/**)",
+      "Read(/C:\\c\\Users\\Warren\\Documents\\bubble-platform/**)",
+      "Read(/C:\\c\\Users\\Warren\\Documents\\bubble-platform/**)",
+      "Read(/C:\\c\\Users\\Warren\\Documents/**)",
+      "Read(/C:\\c\\Users\\Warren\\Documents/**)",
+      "Read(/C:\\c\\Users\\Warren\\Documents/**)",
+      "Read(/C:\\c\\Users\\Warren\\Documents/**)"
     ]
   },
   "enableAllProjectMcpServers": false,

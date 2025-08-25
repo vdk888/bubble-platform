@@ -14,6 +14,8 @@ from ..models.asset import Asset, UniverseAsset
 from ..models.user import User
 from ..core.database import get_db
 from .interfaces.base import ServiceResult
+from .interfaces.screener import IScreener, ScreeningCriteria, ScreeningResult
+from .implementations.fundamental_screener import FundamentalScreener
 
 
 class BulkResult:
@@ -858,6 +860,267 @@ class UniverseService:
                 success=False,
                 error=str(e),
                 message="Failed to remove assets from universe"
+            )
+    
+    async def apply_screening_criteria(
+        self, 
+        universe_id: str, 
+        user_id: str,
+        screener: IScreener = None
+    ) -> ServiceResult:
+        """
+        Apply screening criteria to rebalance universe automatically.
+        
+        Implements dynamic universe screening as specified in Sprint 2 requirements.
+        Uses Interface-First Design with injected screener implementation.
+        
+        Args:
+            universe_id: UUID of universe to screen
+            user_id: User requesting the screening  
+            screener: Screener implementation (defaults to FundamentalScreener)
+            
+        Returns:
+            ServiceResult with screening results and updated universe
+        """
+        try:
+            self._set_rls_context(user_id)
+            
+            # Get universe with current screening criteria
+            universe = self.db.query(Universe).filter(
+                and_(Universe.id == universe_id, Universe.owner_id == user_id)
+            ).first()
+            
+            if not universe:
+                return ServiceResult(
+                    success=False,
+                    error="Universe not found",
+                    message="Universe not found or access denied"
+                )
+            
+            if not universe.screening_criteria:
+                return ServiceResult(
+                    success=False,
+                    error="No screening criteria defined",
+                    message="Universe has no screening criteria to apply",
+                    next_actions=[
+                        "configure_screening_criteria",
+                        "update_universe_criteria"
+                    ]
+                )
+            
+            # Parse screening criteria from JSON
+            criteria = ScreeningCriteria.from_json(universe.screening_criteria)
+            
+            # Use provided screener or default to FundamentalScreener
+            if screener is None:
+                screener = FundamentalScreener(self.db)
+            
+            # Validate criteria before applying
+            validation_result = await screener.validate_criteria(criteria)
+            if not validation_result.success:
+                return ServiceResult(
+                    success=False,
+                    error="Invalid screening criteria",
+                    message=validation_result.message,
+                    metadata=validation_result.metadata
+                )
+            
+            # Get current universe assets for screening
+            current_assets = universe.get_assets()
+            
+            # Get expanded asset pool for screening (all validated assets)
+            # This allows the universe to grow with new qualifying assets
+            asset_pool = self.db.query(Asset).filter(
+                Asset.is_validated == True
+            ).all()
+            
+            # Apply screening criteria
+            screening_result = await screener.screen_universe(
+                asset_pool=asset_pool,
+                criteria=criteria,
+                screening_date=datetime.now(timezone.utc)
+            )
+            
+            # Calculate changes needed
+            current_symbols = {asset.symbol for asset in current_assets}
+            new_symbols = {asset.symbol for asset in screening_result.matching_assets}
+            
+            symbols_to_add = list(new_symbols - current_symbols)
+            symbols_to_remove = list(current_symbols - new_symbols)
+            
+            changes_made = []
+            
+            # Remove assets that no longer meet criteria
+            if symbols_to_remove:
+                remove_result = await self.remove_assets_from_universe(
+                    universe_id, symbols_to_remove, user_id
+                )
+                if remove_result.success:
+                    changes_made.append(f"removed_{len(symbols_to_remove)}_assets")
+            
+            # Add new qualifying assets
+            if symbols_to_add:
+                add_result = await self.add_assets_to_universe(
+                    universe_id, symbols_to_add, user_id
+                )
+                if add_result.success:
+                    changes_made.append(f"added_{len(symbols_to_add)}_assets")
+            
+            # Update universe screening date
+            universe.last_screening_date = datetime.now(timezone.utc)
+            self.db.commit()
+            self.db.refresh(universe)
+            
+            return ServiceResult(
+                success=True,
+                data={
+                    "universe": universe.to_dict(),
+                    "screening_result": {
+                        "total_screened": screening_result.total_screened,
+                        "matches_found": len(screening_result.matching_assets),
+                        "match_rate": screening_result.match_rate,
+                        "symbols_added": symbols_to_add,
+                        "symbols_removed": symbols_to_remove
+                    }
+                },
+                message=f"Universe screening completed successfully. {', '.join(changes_made) if changes_made else 'No changes needed'}",
+                next_actions=[
+                    "review_universe_changes",
+                    "update_strategies",
+                    "run_backtest",
+                    "schedule_next_screening"
+                ],
+                metadata={
+                    "universe_id": universe_id,
+                    "changes_made": changes_made,
+                    "performance_metrics": screening_result.performance_metrics,
+                    "screening_date": screening_result.screening_date.isoformat(),
+                    "criteria_applied": criteria.to_json()
+                }
+            )
+            
+        except Exception as e:
+            self.db.rollback()
+            return ServiceResult(
+                success=False,
+                error=str(e),
+                message=f"Universe screening failed: {str(e)}"
+            )
+    
+    async def preview_screening_impact(
+        self,
+        universe_id: str,
+        user_id: str,
+        new_criteria: Dict[str, Any],
+        screener: IScreener = None
+    ) -> ServiceResult:
+        """
+        Preview the impact of screening criteria without applying changes.
+        
+        Provides "what-if" analysis for criteria optimization before commitment.
+        
+        Args:
+            universe_id: UUID of universe to analyze
+            user_id: User requesting the preview
+            new_criteria: Screening criteria to test
+            screener: Screener implementation (defaults to FundamentalScreener)
+            
+        Returns:
+            ServiceResult with projected changes and statistics
+        """
+        try:
+            self._set_rls_context(user_id)
+            
+            universe = self.db.query(Universe).filter(
+                and_(Universe.id == universe_id, Universe.owner_id == user_id)
+            ).first()
+            
+            if not universe:
+                return ServiceResult(
+                    success=False,
+                    error="Universe not found",
+                    message="Universe not found or access denied"
+                )
+            
+            # Parse and validate new criteria
+            criteria = ScreeningCriteria.from_json(new_criteria)
+            
+            if screener is None:
+                screener = FundamentalScreener(self.db)
+            
+            validation_result = await screener.validate_criteria(criteria)
+            if not validation_result.success:
+                return ServiceResult(
+                    success=False,
+                    error="Invalid screening criteria", 
+                    message=validation_result.message,
+                    metadata=validation_result.metadata
+                )
+            
+            # Get asset pool for screening
+            asset_pool = self.db.query(Asset).filter(
+                Asset.is_validated == True
+            ).all()
+            
+            # Get screening statistics
+            stats = await screener.get_screening_stats(asset_pool, criteria)
+            
+            # Calculate projected changes
+            current_assets = universe.get_assets()
+            current_symbols = {asset.symbol for asset in current_assets}
+            
+            screening_result = await screener.screen_universe(
+                asset_pool=asset_pool,
+                criteria=criteria,
+                screening_date=datetime.now(timezone.utc)
+            )
+            
+            new_symbols = {asset.symbol for asset in screening_result.matching_assets}
+            
+            projected_additions = list(new_symbols - current_symbols)
+            projected_removals = list(current_symbols - new_symbols)
+            projected_unchanged = list(current_symbols & new_symbols)
+            
+            return ServiceResult(
+                success=True,
+                data={
+                    "current_universe": {
+                        "asset_count": len(current_assets),
+                        "symbols": list(current_symbols)
+                    },
+                    "projected_universe": {
+                        "asset_count": len(screening_result.matching_assets),
+                        "symbols": list(new_symbols)
+                    },
+                    "projected_changes": {
+                        "additions": projected_additions,
+                        "removals": projected_removals, 
+                        "unchanged": projected_unchanged,
+                        "additions_count": len(projected_additions),
+                        "removals_count": len(projected_removals),
+                        "unchanged_count": len(projected_unchanged)
+                    },
+                    "screening_stats": stats
+                },
+                message=f"Screening preview completed: {len(projected_additions)} additions, {len(projected_removals)} removals",
+                next_actions=[
+                    "apply_screening_criteria" if projected_additions or projected_removals else "keep_current_criteria",
+                    "refine_screening_criteria",
+                    "compare_criteria_options"
+                ],
+                metadata={
+                    "universe_id": universe_id,
+                    "criteria_tested": criteria.to_json(),
+                    "validation_passed": True,
+                    "impact_level": "high" if (len(projected_additions) + len(projected_removals)) > len(current_assets) * 0.2 else "low"
+                }
+            )
+            
+        except Exception as e:
+            return ServiceResult(
+                success=False,
+                error=str(e),
+                message=f"Screening preview failed: {str(e)}"
             )
 
 

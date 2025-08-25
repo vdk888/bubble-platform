@@ -3,6 +3,7 @@ Asset Search and Validation API Endpoints.
 Following Phase 2 Step 4 specifications with AI-friendly response format.
 """
 import logging
+from datetime import datetime
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.orm import Session
@@ -387,37 +388,106 @@ async def get_available_sectors(
     Returns all sectors found in the asset database, useful for
     sector-based universe creation and asset filtering.
     """
-    # This would query the database for distinct sectors
-    # For now, returning common sectors as example
-    common_sectors = [
-        "Technology",
-        "Healthcare",
-        "Financial Services",
-        "Consumer Cyclical",
-        "Consumer Defensive",
-        "Energy",
-        "Industrials",
-        "Real Estate",
-        "Materials",
-        "Utilities",
-        "Communication Services"
-    ]
+    from ...models.asset import Asset
     
-    return AISectorsResponse(
-        success=True,
-        data=common_sectors,
-        message=f"Retrieved {len(common_sectors)} available sectors",
-        next_actions=[
-            "filter_assets_by_sector",
-            "create_sector_universe",
-            "compare_sector_performance"
-        ],
-        metadata={
-            "total_sectors": len(common_sectors),
-            "data_source": "asset_database",
-            "last_updated": "2025-01-23"
-        }
-    )
+    try:
+        # Query database for distinct sectors with non-null values
+        distinct_sectors = db.query(Asset.sector).filter(
+            Asset.sector.isnot(None),
+            Asset.sector != "",
+            Asset.is_validated == True
+        ).distinct().order_by(Asset.sector).all()
+        
+        # Extract sector names from query results
+        database_sectors = [sector[0] for sector in distinct_sectors if sector[0]]
+        
+        # If no sectors in database, return common sectors as fallback
+        if not database_sectors:
+            fallback_sectors = [
+                "Technology",
+                "Healthcare", 
+                "Financial Services",
+                "Consumer Cyclical",
+                "Consumer Defensive",
+                "Energy",
+                "Industrials",
+                "Real Estate",
+                "Materials",
+                "Utilities",
+                "Communication Services"
+            ]
+            
+            return AISectorsResponse(
+                success=True,
+                data=fallback_sectors,
+                message=f"Retrieved {len(fallback_sectors)} fallback sectors (no database sectors available)",
+                next_actions=[
+                    "validate_assets_to_populate_sectors",
+                    "create_sector_universe",
+                    "filter_assets_by_sector"
+                ],
+                metadata={
+                    "total_sectors": len(fallback_sectors),
+                    "data_source": "fallback_list",
+                    "database_empty": True,
+                    "last_updated": datetime.utcnow().isoformat()
+                }
+            )
+        
+        sectors_list = database_sectors
+        
+        return AISectorsResponse(
+            success=True,
+            data=sectors_list,
+            message=f"Retrieved {len(sectors_list)} sectors from asset database",
+            next_actions=[
+                "filter_assets_by_sector",
+                "create_sector_universe", 
+                "compare_sector_performance"
+            ],
+            metadata={
+                "total_sectors": len(sectors_list),
+                "data_source": "asset_database",
+                "validated_assets_only": True,
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error retrieving sectors from database: {e}")
+        
+        # Return fallback sectors on database error
+        fallback_sectors = [
+            "Technology",
+            "Healthcare",
+            "Financial Services", 
+            "Consumer Cyclical",
+            "Consumer Defensive",
+            "Energy",
+            "Industrials",
+            "Real Estate",
+            "Materials",
+            "Utilities",
+            "Communication Services"
+        ]
+        
+        return AISectorsResponse(
+            success=True,
+            data=fallback_sectors,
+            message=f"Retrieved {len(fallback_sectors)} fallback sectors (database error)",
+            next_actions=[
+                "validate_assets_to_populate_sectors",
+                "retry_sector_query",
+                "create_sector_universe"
+            ],
+            metadata={
+                "total_sectors": len(fallback_sectors),
+                "data_source": "fallback_list",
+                "error": str(e),
+                "database_error": True,
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        )
 
 @router.get("/{symbol}", response_model=AIAssetInfoResponse, summary="Get detailed asset information")
 async def get_asset_info(
