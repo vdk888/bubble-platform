@@ -180,27 +180,27 @@ describe('API Services', () => {
 
       expect(mockApiClient.post).toHaveBeenCalledWith(
         '/api/v1/universes/universe-1/assets',
-        { action: 'add', symbols }
+        { symbols }
       );
       expect(result).toEqual(mockResponse.data);
     });
 
-    test('removeAssets sends asset IDs', async () => {
+    test('removeAssets sends symbols with DELETE method', async () => {
       const mockResponse = {
         data: {
           success: true,
           data: { removed_symbols: ['AAPL'], remaining_count: 1 }
         }
       };
-      mockApiClient.post.mockResolvedValueOnce(mockResponse);
+      mockApiClient.delete.mockResolvedValueOnce(mockResponse);
 
-      const asset_ids = ['asset-1'];
+      const symbols = ['AAPL'];
       
-      const result = await universeAPI.removeAssets('universe-1', asset_ids);
+      const result = await universeAPI.removeAssets('universe-1', symbols);
 
-      expect(mockApiClient.post).toHaveBeenCalledWith(
+      expect(mockApiClient.delete).toHaveBeenCalledWith(
         '/api/v1/universes/universe-1/assets',
-        { action: 'remove', asset_ids }
+        { data: { symbols } }
       );
       expect(result).toEqual(mockResponse.data);
     });
@@ -221,7 +221,7 @@ describe('API Services', () => {
       const result = await assetAPI.search('Apple', 'Technology');
 
       expect(mockApiClient.get).toHaveBeenCalledWith('/api/v1/assets/search', {
-        params: { q: 'Apple', sector: 'Technology', limit: 20 }
+        params: { query: 'Apple', sector: 'Technology', limit: 20 }
       });
       expect(result).toEqual(mockResponse.data);
     });

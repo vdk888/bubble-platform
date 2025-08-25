@@ -140,22 +140,30 @@ class RLSManager:
         if not self.is_postgresql:
             logger.info("Skipping RLS enablement for non-PostgreSQL database")
             return
-            
-        try:
-            for table_name, sql in RLS_POLICIES["enable_rls"].items():
-                try:
-                    self.db.execute(text(sql))
-                    logger.info(f"Enabled RLS on table: {table_name}")
-                except Exception as e:
-                    logger.warning(f"RLS already enabled or table doesn't exist: {table_name} - {e}")
-            
-            self.db.commit()
-            logger.info("RLS enabled on all applicable tables")
-            
-        except Exception as e:
-            self.db.rollback()
-            logger.error(f"Failed to enable RLS: {e}")
-            raise
+        
+        # Enable RLS on each table in separate transactions to avoid cascade failures
+        for table_name, sql in RLS_POLICIES["enable_rls"].items():
+            try:
+                # Check if table exists first
+                table_exists = self.db.execute(text(
+                    "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = :table_name)"
+                ), {"table_name": table_name}).scalar()
+                
+                if not table_exists:
+                    logger.info(f"Skipping RLS for non-existent table: {table_name}")
+                    continue
+                    
+                # Enable RLS in individual transaction
+                self.db.execute(text(sql))
+                self.db.commit()
+                logger.info(f"Enabled RLS on table: {table_name}")
+                
+            except Exception as e:
+                self.db.rollback()
+                logger.warning(f"RLS already enabled or failed for {table_name}: {e}")
+                continue
+        
+        logger.info("RLS enablement completed for all existing tables")
     
     def create_rls_policies(self):
         """Create RLS policies for multi-tenant isolation"""
@@ -163,21 +171,41 @@ class RLSManager:
             logger.info("Skipping RLS policy creation for non-PostgreSQL database")
             return
             
-        try:
-            for policy_name, sql in RLS_POLICIES["create_policies"].items():
-                try:
-                    self.db.execute(text(sql))
-                    logger.info(f"Created RLS policy: {policy_name}")
-                except Exception as e:
-                    logger.warning(f"RLS policy already exists or failed: {policy_name} - {e}")
-            
-            self.db.commit()
-            logger.info("All RLS policies created successfully")
-            
-        except Exception as e:
-            self.db.rollback()
-            logger.error(f"Failed to create RLS policies: {e}")
-            raise
+        # Create each policy in separate transactions to avoid cascade failures
+        for policy_name, sql in RLS_POLICIES["create_policies"].items():
+            try:
+                # Extract table name from the policy SQL
+                table_name = policy_name.split('_')[0]  # e.g., 'user_isolation' -> 'users'
+                if table_name == 'user': table_name = 'users'
+                elif table_name == 'universe': table_name = 'universes'
+                elif table_name == 'strategy': table_name = 'strategies'
+                elif table_name == 'portfolio' and 'allocation' not in policy_name: table_name = 'portfolios'
+                elif table_name == 'portfolio' and 'allocation' in policy_name: table_name = 'portfolio_allocations'
+                elif table_name == 'order': table_name = 'orders'
+                elif table_name == 'execution': table_name = 'executions'
+                elif table_name == 'conversation': table_name = 'conversations'
+                elif table_name == 'chat': table_name = 'chat_messages'
+                
+                # Check if table exists first
+                table_exists = self.db.execute(text(
+                    "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = :table_name)"
+                ), {"table_name": table_name}).scalar()
+                
+                if not table_exists:
+                    logger.info(f"Skipping policy {policy_name} for non-existent table: {table_name}")
+                    continue
+                
+                # Create policy in individual transaction
+                self.db.execute(text(sql))
+                self.db.commit()
+                logger.info(f"Created RLS policy: {policy_name}")
+                
+            except Exception as e:
+                self.db.rollback()
+                logger.warning(f"RLS policy already exists or failed: {policy_name} - {e}")
+                continue
+                
+        logger.info("RLS policy creation completed for all existing tables")
     
     def setup_complete_rls(self):
         """Complete RLS setup: role creation, table enablement, and policy creation"""

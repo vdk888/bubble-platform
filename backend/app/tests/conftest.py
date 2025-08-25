@@ -276,6 +276,30 @@ def mock_universe_service():
             def get_symbols(self):
                 return self.symbols
             
+            def get_assets(self):
+                """Return full asset data with relationship metadata to match Universe.get_assets()"""
+                assets = []
+                for i, symbol in enumerate(self.symbols):
+                    asset_data = {
+                        'id': f'test-asset-{symbol}',
+                        'symbol': symbol,
+                        'name': f'{symbol} Test Company',
+                        'sector': 'Technology',
+                        'industry': 'Software',
+                        'market_cap': 1000000000,
+                        'pe_ratio': 25.0,
+                        'dividend_yield': 0.02,
+                        'is_validated': True,
+                        'created_at': datetime.now(timezone.utc).isoformat(),
+                        'updated_at': datetime.now(timezone.utc).isoformat(),
+                        'universe_position': i + 1,
+                        'added_to_universe_at': datetime.now(timezone.utc).isoformat(),
+                        'universe_weight': 1.0 / len(self.symbols) if self.symbols else 0.0,
+                        'universe_notes': None
+                    }
+                    assets.append(asset_data)
+                return assets
+            
             def get_asset_count(self):
                 return len(self.symbols)
         

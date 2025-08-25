@@ -103,6 +103,46 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
     }
   };
 
+  // Enhanced universe update handler that refreshes both list and selected universe
+  const handleUniverseUpdate = async (updatedUniverseId?: string) => {
+    try {
+      console.log('🔄 Starting universe update synchronization...');
+      
+      // Always refresh the universe list first
+      await loadUniverses();
+      
+      // If we have a selected universe, fetch its updated data
+      if (selectedUniverse) {
+        const targetId = updatedUniverseId || selectedUniverse.id;
+        console.log('🔄 Refreshing selected universe data:', targetId);
+        
+        const result = await universeAPI.get(targetId);
+        if (result.success && result.data) {
+          // Update selected universe with fresh data from API
+          setSelectedUniverse(result.data);
+          console.log('✅ Selected universe refreshed with updated data:', {
+            id: result.data.id,
+            name: result.data.name,
+            assetCount: result.data.asset_count || result.data.assets?.length || 0,
+            assetsLength: result.data.assets?.length || 0
+          });
+        } else {
+          console.warn('⚠️ Failed to refresh selected universe:', result.message);
+          // Clear error after a delay to avoid persistent error state
+          setError(`Warning: ${result.message || 'Could not refresh universe details'}`);
+          setTimeout(() => setError(null), 3000);
+        }
+      }
+      
+      console.log('✅ Universe update synchronization completed');
+    } catch (error) {
+      console.error('❌ Error during universe update synchronization:', error);
+      setError('Failed to refresh universe data. Please try refreshing the page.');
+      // Auto-clear error after 5 seconds
+      setTimeout(() => setError(null), 5000);
+    }
+  };
+
   const handleAssetSelect = (asset: Asset) => {
     // This will be used for adding assets to universes
     console.log('Asset selected:', asset);
@@ -247,7 +287,7 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="text-2xl font-bold text-gray-900">
-                    {selectedUniverse.asset_count || 0}
+                    {selectedUniverse.asset_count || selectedUniverse.assets?.length || 0}
                   </div>
                   <div className="text-sm text-gray-500">Assets</div>
                 </div>
@@ -276,7 +316,7 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
               {/* Asset Table with Inline Editing (Sprint 2 Step 2) */}
               <UniverseAssetTable
                 universe={selectedUniverse}
-                onUniverseUpdate={loadUniverses}
+                onUniverseUpdate={() => handleUniverseUpdate(selectedUniverse.id)}
               />
             </div>
           </div>

@@ -80,6 +80,10 @@ services:
       - REDIS_URL=redis://test_redis:6379
       - ENVIRONMENT=testing
       - DEBUG=false
+      - SECRET_KEY=test-secret-key-for-testing-only-not-production
+      - CLAUDE_API_KEY=test-claude-key-for-testing
+      - ALPACA_API_KEY=test-alpaca-key-for-testing
+      - ALPACA_SECRET_KEY=test-alpaca-secret-for-testing
     depends_on:
       test_db:
         condition: service_healthy

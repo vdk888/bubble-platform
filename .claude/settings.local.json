@@ -1,4 +1,9 @@
 {
+  "enableAllProjectMcpServers": false,
   "outputStyle": "Explanatory",
-  "enableAllProjectMcpServers": false
+  "permissions": {
+    "allow": [
+      "Bash(docker-compose logs:*)"
+    ]
+  }
 }

@@ -112,6 +112,7 @@ async def list_universes(
                 description=universe["description"],
                 asset_count=len(universe.get("symbols", [])),
                 symbols=universe.get("symbols", []),
+                assets=universe.get("assets", []),
                 turnover_rate=universe.get("turnover_rate", 0.0),
                 created_at=created_at,
                 updated_at=updated_at
@@ -124,6 +125,7 @@ async def list_universes(
                 description=universe.description,
                 asset_count=len(universe.get_symbols()),
                 symbols=universe.get_symbols(),
+                assets=universe.get_assets(),
                 turnover_rate=universe.turnover_rate,
                 created_at=universe.created_at.isoformat(),
                 updated_at=universe.updated_at.isoformat()
@@ -219,6 +221,7 @@ async def create_universe(
         description=universe.description,
         asset_count=len(universe.get_symbols()),
         symbols=universe.get_symbols(),
+        assets=universe.get_assets(),
         turnover_rate=universe.turnover_rate,
         created_at=universe.created_at.isoformat(),
         updated_at=universe.updated_at.isoformat()
@@ -287,6 +290,7 @@ async def get_universe(
         description=universe.description,
         asset_count=len(universe.get_symbols()),
         symbols=universe.get_symbols(),
+        assets=universe.get_assets(),
         turnover_rate=universe.turnover_rate,
         created_at=universe.created_at.isoformat(),
         updated_at=universe.updated_at.isoformat()
@@ -375,6 +379,7 @@ async def update_universe(
         description=updated_universe.description,
         asset_count=len(updated_universe.get_symbols()),
         symbols=updated_universe.get_symbols(),
+        assets=updated_universe.get_assets(),
         turnover_rate=updated_universe.turnover_rate,
         created_at=updated_universe.created_at.isoformat(),
         updated_at=updated_universe.updated_at.isoformat()

@@ -29,25 +29,6 @@ const apiClient = axios.create({
 
 // Request interceptor to add authentication token
 apiClient.interceptors.request.use((config) => {
-  console.log('🚨 AXIOS CONFIG DEBUG:', {
-    method: config.method?.toUpperCase(),
-    url: config.url,
-    baseURL: config.baseURL,
-    fullURL: (config.baseURL || '') + (config.url || ''),
-    configuredBaseURL: API_BASE_URL,
-    actualUrl: config.url,
-    finalRequestUrl: config.baseURL ? config.baseURL + config.url : config.url
-  });
-  
-  // Critical debugging: Check if baseURL is being changed somehow
-  if (config.baseURL !== API_BASE_URL) {
-    console.error('🚨 BASEURL MISMATCH!', {
-      expected: API_BASE_URL,
-      actual: config.baseURL,
-      thisWillBreakProxy: true
-    });
-  }
-  
   const token = localStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -97,50 +78,58 @@ export const authAPI = {
   },
 };
 
-// DEBUGGING: Create fresh axios instance for universe API
-const freshApiClient = axios.create({
-  baseURL: '',  // Force empty baseURL for proxy
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add token to fresh client
-freshApiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  console.log('🆕 FRESH CLIENT DEBUG:', {
-    baseURL: config.baseURL,
-    url: config.url,
-    fullURL: (config.baseURL || '') + (config.url || ''),
-    shouldUseProxy: true
-  });
-  return config;
-});
 
 // Universe API
 export const universeAPI = {
   list: async (): Promise<ServiceResult<Universe[]>> => {
-    console.log('🔍 UNIVERSE API DEBUG - Before request:', {
-      apiClientBaseURL: apiClient.defaults.baseURL,
-      expectedBaseURL: API_BASE_URL,
-      urlPath: '/api/v1/universes',
-      willRequestTo: (apiClient.defaults.baseURL || '') + '/api/v1/universes'
-    });
-    
-    console.log('🧪 TESTING FRESH CLIENT vs ORIGINAL CLIENT');
-    
-    // TEST: Use fresh axios client instead of shared one
-    const response = await freshApiClient.get('/api/v1/universes');
+    const response = await apiClient.get('/api/v1/universes');
     return response.data;
   },
 
   get: async (id: string): Promise<ServiceResult<Universe>> => {
-    const response = await apiClient.get(`/api/v1/universes/${id}`);
-    return response.data;
+    try {
+      console.log('📤 API: Fetching universe details', { id });
+      const response = await apiClient.get(`/api/v1/universes/${id}`);
+      console.log('📥 API: Get universe response', {
+        success: response.data?.success,
+        universeId: response.data?.data?.id,
+        universeName: response.data?.data?.name,
+        assetCount: response.data?.data?.asset_count || response.data?.data?.assets?.length || 0,
+        assetsLength: response.data?.data?.assets?.length || 0
+      });
+      
+      // Ensure we return the universe data in the expected format
+      const result = response.data;
+      if (result.success && result.data) {
+        // Transform the API response to match our Universe interface
+        const universe = result.data;
+        return {
+          success: true,
+          data: {
+            ...universe,
+            asset_count: universe.asset_count || universe.assets?.length || 0
+          },
+          message: result.message || 'Universe retrieved successfully'
+        };
+      }
+      
+      return result;
+    } catch (error: any) {
+      console.error('❌ API: Get universe failed', error);
+      // Transform axios error to consistent format
+      if (error.response?.data) {
+        return {
+          success: false,
+          message: error.response.data.message || error.response.data.detail || 'Failed to fetch universe',
+          data: undefined
+        };
+      }
+      return {
+        success: false,
+        message: 'Network error while fetching universe',
+        data: undefined
+      };
+    }
   },
 
   create: async (name: string, description?: string): Promise<ServiceResult<Universe>> => {
@@ -162,19 +151,87 @@ export const universeAPI = {
   },
 
   addAssets: async (id: string, symbols: string[]): Promise<ServiceResult<BulkValidationResult>> => {
-    const response = await apiClient.post(`/api/v1/universes/${id}/assets`, { 
-      action: 'add',
-      symbols 
-    });
-    return response.data;
+    try {
+      console.log('📤 API: Adding assets to universe', { id, symbols });
+      const response = await apiClient.post(`/api/v1/universes/${id}/assets`, { 
+        symbols 
+      });
+      console.log('📥 API: Add assets response', {
+        success: response.data?.success,
+        message: response.data?.message,
+        addedCount: response.data?.data?.added_count,
+        totalRequested: response.data?.data?.total_requested,
+        successfulSymbols: response.data?.data?.successful_symbols
+      });
+      
+      const result = response.data;
+      if (result.success) {
+        console.log('✅ Assets successfully added to universe:', {
+          universeId: id,
+          addedSymbols: result.data?.successful_symbols || [],
+          failedSymbols: result.data?.failed_symbols || []
+        });
+      }
+      
+      return result;
+    } catch (error: any) {
+      console.error('❌ API: Add assets failed', error);
+      // Transform axios error to consistent format
+      if (error.response?.data) {
+        return {
+          success: false,
+          message: error.response.data.message || error.response.data.detail || 'Failed to add assets',
+          data: undefined
+        };
+      }
+      return {
+        success: false,
+        message: 'Network error while adding assets',
+        data: undefined
+      };
+    }
   },
 
-  removeAssets: async (id: string, asset_ids: string[]): Promise<ServiceResult> => {
-    const response = await apiClient.post(`/api/v1/universes/${id}/assets`, { 
-      action: 'remove',
-      asset_ids 
-    });
-    return response.data;
+  removeAssets: async (id: string, symbols: string[]): Promise<ServiceResult> => {
+    try {
+      console.log('📤 API: Removing assets from universe', { id, symbols });
+      const response = await apiClient.delete(`/api/v1/universes/${id}/assets`, { 
+        data: { symbols }
+      });
+      console.log('📥 API: Remove assets response', {
+        success: response.data?.success,
+        message: response.data?.message,
+        removedCount: response.data?.data?.added_count, // This is actually removed count in the API
+        totalRequested: response.data?.data?.total_requested,
+        successfulSymbols: response.data?.data?.successful_symbols
+      });
+      
+      const result = response.data;
+      if (result.success) {
+        console.log('✅ Assets successfully removed from universe:', {
+          universeId: id,
+          removedSymbols: result.data?.successful_symbols || [],
+          failedSymbols: result.data?.failed_symbols || []
+        });
+      }
+      
+      return result;
+    } catch (error: any) {
+      console.error('❌ API: Remove assets failed', error);
+      // Transform axios error to consistent format
+      if (error.response?.data) {
+        return {
+          success: false,
+          message: error.response.data.message || error.response.data.detail || 'Failed to remove assets',
+          data: null
+        };
+      }
+      return {
+        success: false,
+        message: 'Network error while removing assets',
+        data: null
+      };
+    }
   },
 };
 
@@ -186,7 +243,7 @@ export const assetAPI = {
     limit: number = 20, 
     filters?: Record<string, any>
   ): Promise<ServiceResult<AssetSearchResult>> => {
-    const params: Record<string, any> = { query: query, limit };
+    const params: Record<string, any> = { query, limit };
     if (sector) params.sector = sector;
     
     // Add multi-metric filters (Sprint 2 Step 1)
@@ -209,8 +266,27 @@ export const assetAPI = {
   },
 
   validate: async (symbols: string[]): Promise<ServiceResult<BulkValidationResult>> => {
-    const response = await apiClient.post('/api/v1/assets/validate', { symbols });
-    return response.data;
+    try {
+      console.log('📤 API: Validating asset symbols', { symbols });
+      const response = await apiClient.post('/api/v1/assets/validate', { symbols });
+      console.log('📥 API: Validation response', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ API: Asset validation failed', error);
+      // Transform axios error to consistent format
+      if (error.response?.data) {
+        return {
+          success: false,
+          message: error.response.data.message || error.response.data.detail || 'Failed to validate assets',
+          data: undefined
+        };
+      }
+      return {
+        success: false,
+        message: 'Network error while validating assets',
+        data: undefined
+      };
+    }
   },
 
   getSectors: async (): Promise<ServiceResult<string[]>> => {

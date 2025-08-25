@@ -511,6 +511,26 @@ class TestUniverseAPIValidation:
             universe.owner_id = user_id
             universe.symbols = initial_symbols or []
             universe.get_symbols = lambda: universe.symbols
+            universe.get_assets = lambda: [
+                {
+                    'id': f'test-asset-{symbol}',
+                    'symbol': symbol,
+                    'name': f'{symbol} Test Company',
+                    'sector': 'Technology',
+                    'industry': 'Software',
+                    'market_cap': 1000000000,
+                    'pe_ratio': 25.0,
+                    'dividend_yield': 0.02,
+                    'is_validated': True,
+                    'created_at': datetime.now(timezone.utc).isoformat(),
+                    'updated_at': datetime.now(timezone.utc).isoformat(),
+                    'universe_position': i + 1,
+                    'added_to_universe_at': datetime.now(timezone.utc).isoformat(),
+                    'universe_weight': 1.0 / len(universe.symbols) if universe.symbols else 0.0,
+                    'universe_notes': None
+                }
+                for i, symbol in enumerate(universe.symbols)
+            ]
             universe.get_asset_count = lambda: len(universe.symbols)
             universe.turnover_rate = 0.0
             
@@ -594,3 +614,124 @@ class TestUniverseAPIValidation:
         
         # Very long names should be accepted (no length limit in current model)
         assert response.status_code == 201
+
+    def test_universe_response_includes_assets_field(self, authenticated_client, db_session):
+        """
+        Test that universe API responses include complete assets field with full asset details.
+        This test verifies the fix for the frontend asset display issue.
+        """
+        client, user = authenticated_client
+        
+        # Create assets directly in database for real data testing
+        asset1 = Asset(
+            id="asset-1",
+            symbol="AAPL",
+            name="Apple Inc.",
+            sector="Technology", 
+            market_cap=3000000000000,  # $3T
+            pe_ratio=25.5,
+            is_validated=True,
+            asset_metadata={"country": "US", "exchange": "NASDAQ"}
+        )
+        asset2 = Asset(
+            id="asset-2", 
+            symbol="GOOGL",
+            name="Alphabet Inc.",
+            sector="Technology",
+            market_cap=1800000000000,  # $1.8T
+            pe_ratio=22.1,
+            is_validated=True,
+            asset_metadata={"country": "US", "exchange": "NASDAQ"}
+        )
+        
+        # Create universe with assets
+        universe = Universe(
+            id="test-universe-assets",
+            name="Assets Test Universe",
+            description="Testing asset field inclusion",
+            owner_id=user.id
+        )
+        
+        # Create universe-asset relationships
+        universe_asset1 = UniverseAsset(
+            universe_id=universe.id,
+            asset_id=asset1.id,
+            position=0,
+            weight=0.6,
+            notes="Primary holding"
+        )
+        universe_asset2 = UniverseAsset(
+            universe_id=universe.id,
+            asset_id=asset2.id,
+            position=1,
+            weight=0.4,
+            notes="Secondary holding"
+        )
+        
+        db_session.add_all([asset1, asset2, universe, universe_asset1, universe_asset2])
+        db_session.commit()
+        
+        # Test 1: List universes should include assets field
+        response = client.get("/api/v1/universes/")
+        assert response.status_code == 200
+        data = response.json()
+        
+        assert data["success"] is True
+        assert len(data["data"]) == 1
+        
+        universe_data = data["data"][0]
+        assert "assets" in universe_data, "Universe response missing 'assets' field"
+        assert len(universe_data["assets"]) == 2, "Assets field should contain 2 assets"
+        assert universe_data["asset_count"] == 2, "Asset count should match assets length"
+        
+        # Verify complete asset data structure
+        assets = universe_data["assets"]
+        asset_symbols = [asset["symbol"] for asset in assets]
+        assert "AAPL" in asset_symbols
+        assert "GOOGL" in asset_symbols
+        
+        # Verify asset details are included
+        aapl_asset = next(asset for asset in assets if asset["symbol"] == "AAPL")
+        assert aapl_asset["name"] == "Apple Inc."
+        assert aapl_asset["sector"] == "Technology" 
+        assert aapl_asset["market_cap"] == 3000000000000
+        assert aapl_asset["pe_ratio"] == 25.5
+        assert aapl_asset["is_validated"] is True
+        assert aapl_asset["universe_position"] == 0
+        assert aapl_asset["universe_weight"] == 0.6
+        assert aapl_asset["universe_notes"] == "Primary holding"
+        
+        # Test 2: Get single universe should include assets field  
+        response = client.get(f"/api/v1/universes/{universe.id}")
+        assert response.status_code == 200
+        data = response.json()
+        
+        assert data["success"] is True
+        universe_data = data["data"]
+        assert "assets" in universe_data, "Single universe response missing 'assets' field"
+        assert len(universe_data["assets"]) == 2, "Single universe assets field should contain 2 assets"
+        
+        # Test 3: Verify symbols field is still present for backward compatibility
+        assert "symbols" in universe_data, "Universe response missing 'symbols' field"
+        assert len(universe_data["symbols"]) == 2
+        assert set(universe_data["symbols"]) == {"AAPL", "GOOGL"}
+        
+        # Test 4: Empty universe should have empty assets list
+        empty_universe = Universe(
+            id="empty-universe",
+            name="Empty Universe", 
+            description="No assets",
+            owner_id=user.id
+        )
+        db_session.add(empty_universe)
+        db_session.commit()
+        
+        response = client.get(f"/api/v1/universes/{empty_universe.id}")
+        assert response.status_code == 200
+        data = response.json()
+        
+        assert data["success"] is True
+        universe_data = data["data"]
+        assert "assets" in universe_data, "Empty universe response missing 'assets' field"
+        assert universe_data["assets"] == [], "Empty universe should have empty assets list"
+        assert universe_data["asset_count"] == 0
