@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Date, JSON, DECIMAL, ForeignKey, DateTime
+from sqlalchemy import Column, String, Date, JSON, DECIMAL, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
@@ -44,6 +44,7 @@ class UniverseSnapshot(BaseModel):
     # Database constraints
     __table_args__ = (
         # Ensure unique snapshots per universe per date
+        UniqueConstraint('universe_id', 'snapshot_date', name='uq_universe_snapshot_date'),
         {'schema': None, 'extend_existing': True}
     )
     
@@ -127,7 +128,7 @@ class UniverseSnapshot(BaseModel):
             'snapshot_date': self.snapshot_date.isoformat() if self.snapshot_date else None,
             'assets': self.assets or [],
             'screening_criteria': self.screening_criteria or {},
-            'turnover_rate': float(self.turnover_rate) if self.turnover_rate else None,
+            'turnover_rate': float(self.turnover_rate) if self.turnover_rate is not None else 0.0,
             'assets_added': self.assets_added or [],
             'assets_removed': self.assets_removed or [],
             'performance_metrics': self.performance_metrics or {},

@@ -1438,19 +1438,40 @@ class UniverseService:
                     from datetime import timedelta
                     current_date += timedelta(weeks=1)
                 elif frequency == 'monthly':
-                    # Move to next month (approximate)
-                    if current_date.month == 12:
-                        current_date = current_date.replace(year=current_date.year + 1, month=1)
-                    else:
-                        current_date = current_date.replace(month=current_date.month + 1)
+                    # Move to next month, handling month boundaries properly
+                    try:
+                        if current_date.month == 12:
+                            current_date = current_date.replace(year=current_date.year + 1, month=1)
+                        else:
+                            current_date = current_date.replace(month=current_date.month + 1)
+                    except ValueError:
+                        # Handle cases where day doesn't exist in target month (e.g., Jan 31 -> Feb 31)
+                        import calendar
+                        next_month = current_date.month + 1 if current_date.month < 12 else 1
+                        next_year = current_date.year if current_date.month < 12 else current_date.year + 1
+                        last_day_of_month = calendar.monthrange(next_year, next_month)[1]
+                        safe_day = min(current_date.day, last_day_of_month)
+                        current_date = current_date.replace(year=next_year, month=next_month, day=safe_day)
                 elif frequency == 'quarterly':
-                    # Move to next quarter
-                    new_month = current_date.month + 3
-                    new_year = current_date.year
-                    if new_month > 12:
-                        new_month -= 12
-                        new_year += 1
-                    current_date = current_date.replace(year=new_year, month=new_month)
+                    # Move to next quarter, handling month boundaries properly
+                    try:
+                        new_month = current_date.month + 3
+                        new_year = current_date.year
+                        if new_month > 12:
+                            new_month -= 12
+                            new_year += 1
+                        current_date = current_date.replace(year=new_year, month=new_month)
+                    except ValueError:
+                        # Handle cases where day doesn't exist in target month
+                        import calendar
+                        new_month = current_date.month + 3
+                        new_year = current_date.year
+                        if new_month > 12:
+                            new_month -= 12
+                            new_year += 1
+                        last_day_of_month = calendar.monthrange(new_year, new_month)[1]
+                        safe_day = min(current_date.day, last_day_of_month)
+                        current_date = current_date.replace(year=new_year, month=new_month, day=safe_day)
                 else:
                     raise ValueError(f"Unsupported frequency: {frequency}")
             

@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from unittest.mock import AsyncMock, patch
 
-from app.models.user import User
+from app.models.user import User, UserRole, SubscriptionTier
 from app.models.universe import Universe
 from app.models.universe_snapshot import UniverseSnapshot
 from app.models.asset import Asset, UniverseAsset
@@ -31,9 +31,12 @@ class TestUniverseServiceTemporal:
         user = User(
             email="temporal@service.com",
             hashed_password="hashed123",
-            full_name="Temporal Service User"
+            full_name="Temporal Service User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         # Create universe
         universe = Universe(
@@ -307,7 +310,9 @@ class TestUniverseServiceTemporal:
         other_user = User(
             email="other@service.com",
             hashed_password="hashed123",
-            full_name="Other User"
+            full_name="Other User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         universe_service.db.add(other_user)
         universe_service.db.commit()
@@ -320,7 +325,7 @@ class TestUniverseServiceTemporal:
         )
         
         assert result.success is False
-        assert "Access denied" in result.message
+        assert result.error == "Access denied"
     
     @pytest.mark.asyncio
     async def test_temporal_methods_nonexistent_universe(self, universe_service: UniverseService):
@@ -332,7 +337,7 @@ class TestUniverseServiceTemporal:
         )
         
         assert result.success is False
-        assert "Universe not found" in result.message
+        assert result.error == "Universe not found"
 
 
 class TestTemporalUniverseService:
@@ -349,9 +354,12 @@ class TestTemporalUniverseService:
         user = User(
             email="temporal@screening.com",
             hashed_password="hashed123",
-            full_name="Temporal Screening User"
+            full_name="Temporal Screening User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="Temporal Screening Universe",
@@ -405,9 +413,12 @@ class TestTemporalUniverseService:
         user = User(
             email="nocriteria@test.com",
             hashed_password="hashed123",
-            full_name="No Criteria User"
+            full_name="No Criteria User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="No Criteria Universe",
@@ -430,7 +441,7 @@ class TestTemporalUniverseService:
         )
         
         assert result.success is False
-        assert "No screening criteria" in result.message
+        assert result.error == "No screening criteria"
         assert "configure_screening_criteria" in result.next_actions
     
     @pytest.mark.asyncio
@@ -480,7 +491,7 @@ class TestTemporalUniverseService:
         )
         
         assert result.success is False
-        assert "No snapshot found" in result.message
+        assert result.error == "No snapshot found"
         assert "create_historical_snapshot" in result.next_actions
     
     @pytest.mark.asyncio
@@ -506,7 +517,7 @@ class TestTemporalUniverseService:
         )
         
         assert result.success is False
-        assert "Insufficient data" in result.message
+        assert result.error == "Insufficient data"
         assert "create_more_snapshots" in result.next_actions
 
 
@@ -521,9 +532,12 @@ class TestTemporalServicesIntegration:
         user = User(
             email="workflow@integration.com",
             hashed_password="hashed123",
-            full_name="Workflow Integration User"
+            full_name="Workflow Integration User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="Workflow Integration Universe",
@@ -626,9 +640,12 @@ class TestTemporalServicesIntegration:
         user = User(
             email="performance@test.com",
             hashed_password="hashed123",
-            full_name="Performance Test User"
+            full_name="Performance Test User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="Performance Test Universe",
@@ -653,10 +670,6 @@ class TestTemporalServicesIntegration:
             result = await universe_service.create_universe_snapshot(
                 universe_id=universe.id,
                 snapshot_date=snapshot_date,
-                current_assets=[
-                    {'symbol': f'STOCK{i}', 'name': f'Stock {i}', 'weight': 1.0/10}
-                    for i in range(10)
-                ],
                 user_id=user.id
             )
             assert result.success is True

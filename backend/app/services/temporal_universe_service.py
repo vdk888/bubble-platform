@@ -148,6 +148,10 @@ class TemporalUniverseService:
             universe.screening_criteria['next_executions'] = [d.isoformat() for d in next_dates]
             universe.screening_criteria['schedule_created'] = datetime.now(timezone.utc).isoformat()
             
+            # Mark the JSON field as modified so SQLAlchemy detects the change
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(universe, 'screening_criteria')
+            
             self.db.commit()
             
             return ServiceResult(

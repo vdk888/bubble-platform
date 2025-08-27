@@ -7,10 +7,9 @@ from datetime import date, datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from app.models.user import User
+from app.models.user import User, UserRole, SubscriptionTier
 from app.models.universe import Universe
 from app.models.universe_snapshot import UniverseSnapshot
-from app.core.database import get_db
 
 
 class TestUniverseSnapshotModel:
@@ -22,12 +21,14 @@ class TestUniverseSnapshotModel:
         user = User(
             email="snapshot@test.com",
             hashed_password="hashed123",
-            full_name="Snapshot Test User"
+            full_name="Snapshot Test User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
         db_session.commit()
         
-        # Create test universe
+        # Create test universe  
         universe = Universe(
             name="Test Universe",
             description="Universe for snapshot testing",
@@ -70,9 +71,12 @@ class TestUniverseSnapshotModel:
         user = User(
             email="turnover@test.com",
             hashed_password="hashed123",
-            full_name="Turnover Test User"
+            full_name="Turnover Test User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="Turnover Test Universe",
@@ -130,9 +134,12 @@ class TestUniverseSnapshotModel:
         user = User(
             email="methods@test.com",
             hashed_password="hashed123",
-            full_name="Methods Test User"
+            full_name="Methods Test User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="Methods Test Universe",
@@ -198,9 +205,12 @@ class TestUniverseSnapshotModel:
         user = User(
             email="todict@test.com",
             hashed_password="hashed123",
-            full_name="ToDict Test User"
+            full_name="ToDict Test User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="ToDict Test Universe",
@@ -253,9 +263,12 @@ class TestUniverseSnapshotModel:
         user = User(
             email="validation@test.com",
             hashed_password="hashed123",
-            full_name="Validation Test User"
+            full_name="Validation Test User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="Validation Test Universe",
@@ -317,9 +330,12 @@ class TestUniverseTemporalMethods:
         user = User(
             email="composition@test.com",
             hashed_password="hashed123",
-            full_name="Composition Test User"
+            full_name="Composition Test User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="Composition Test Universe",
@@ -379,9 +395,12 @@ class TestUniverseTemporalMethods:
         user = User(
             email="timeline@test.com",
             hashed_password="hashed123",
-            full_name="Timeline Test User"
+            full_name="Timeline Test User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="Timeline Test Universe",
@@ -429,9 +448,12 @@ class TestUniverseTemporalMethods:
         user = User(
             email="count@test.com",
             hashed_password="hashed123",
-            full_name="Count Test User"
+            full_name="Count Test User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="Count Test Universe",
@@ -479,9 +501,12 @@ class TestUniverseTemporalMethods:
         user = User(
             email="temporal@test.com",
             hashed_password="hashed123",
-            full_name="Temporal Test User"
+            full_name="Temporal Test User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="Temporal Test Universe",
@@ -522,9 +547,12 @@ class TestUniverseSnapshotIntegration:
         user = User(
             email="unique@test.com",
             hashed_password="hashed123",
-            full_name="Unique Test User"
+            full_name="Unique Test User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="Unique Test Universe",
@@ -561,9 +589,12 @@ class TestUniverseSnapshotIntegration:
         user = User(
             email="cascade@test.com",
             hashed_password="hashed123",
-            full_name="Cascade Test User"
+            full_name="Cascade Test User",
+            role=UserRole.USER,
+            subscription_tier=SubscriptionTier.FREE
         )
         db_session.add(user)
+        db_session.commit()
         
         universe = Universe(
             name="Cascade Test Universe",
