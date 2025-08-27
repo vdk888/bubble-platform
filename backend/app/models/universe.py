@@ -1,7 +1,8 @@
-from sqlalchemy import Column, String, Text, ForeignKey, JSON, Float, DateTime
+from sqlalchemy import Column, String, Text, ForeignKey, JSON, Float, DateTime, and_, desc
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
-from typing import List, Dict, Any
+from datetime import datetime, timezone, date
+from typing import List, Dict, Any, Optional
+import pandas as pd
 from .base import BaseModel
 
 class Universe(BaseModel):
@@ -35,6 +36,14 @@ class Universe(BaseModel):
         back_populates="universe", 
         cascade="all, delete-orphan",
         order_by="UniverseAsset.position"
+    )
+    
+    # NEW: Temporal universe snapshots (Sprint 2.5)
+    snapshots = relationship(
+        "UniverseSnapshot", 
+        back_populates="universe", 
+        cascade="all, delete-orphan",
+        order_by="UniverseSnapshot.snapshot_date"
     )
     
     def __repr__(self) -> str:
@@ -88,9 +97,110 @@ class Universe(BaseModel):
         
         return len(symmetric_diff) / len(union_set)
     
+    # NEW: Temporal universe methods (Sprint 2.5)
+    def get_composition_at_date(self, target_date: date) -> Optional[List[Dict[str, Any]]]:
+        """
+        Get universe composition at specific historical date.
+        
+        Args:
+            target_date: Date to get composition for
+            
+        Returns:
+            List of asset dictionaries at that date, or None if no snapshot exists
+        """
+        if not self.snapshots:
+            return None
+        
+        # Find the most recent snapshot at or before the target date
+        relevant_snapshot = None
+        for snapshot in sorted(self.snapshots, key=lambda s: s.snapshot_date, reverse=True):
+            if snapshot.snapshot_date <= target_date:
+                relevant_snapshot = snapshot
+                break
+        
+        return relevant_snapshot.assets if relevant_snapshot else None
+    
+    def get_evolution_timeline(self, start_date: date, end_date: date) -> List['UniverseSnapshot']:
+        """
+        Get historical snapshots for timeline view.
+        
+        Args:
+            start_date: Start date for timeline
+            end_date: End date for timeline
+            
+        Returns:
+            List of UniverseSnapshot objects in date order
+        """
+        if not self.snapshots:
+            return []
+        
+        return [
+            snapshot for snapshot in self.snapshots
+            if start_date <= snapshot.snapshot_date <= end_date
+        ]
+    
+    def calculate_historical_turnover(self, start_date: date, end_date: date) -> Optional[pd.Series]:
+        """
+        Calculate turnover rates between periods.
+        
+        Args:
+            start_date: Start date for analysis
+            end_date: End date for analysis
+            
+        Returns:
+            Pandas Series with turnover rates indexed by date, or None if insufficient data
+        """
+        try:
+            timeline = self.get_evolution_timeline(start_date, end_date)
+            
+            if len(timeline) < 2:
+                return None
+            
+            dates = []
+            turnover_rates = []
+            
+            for snapshot in timeline:
+                if snapshot.turnover_rate is not None:
+                    dates.append(snapshot.snapshot_date)
+                    turnover_rates.append(float(snapshot.turnover_rate))
+            
+            if not dates:
+                return None
+            
+            return pd.Series(turnover_rates, index=dates, name='turnover_rate')
+        
+        except ImportError:
+            # If pandas is not available, return simple dict
+            timeline = self.get_evolution_timeline(start_date, end_date)
+            return {
+                snapshot.snapshot_date: float(snapshot.turnover_rate or 0.0)
+                for snapshot in timeline
+                if snapshot.turnover_rate is not None
+            }
+    
+    def get_latest_snapshot(self) -> Optional['UniverseSnapshot']:
+        """Get the most recent snapshot for this universe"""
+        if not self.snapshots:
+            return None
+        
+        return max(self.snapshots, key=lambda s: s.snapshot_date)
+    
+    def has_snapshots_in_range(self, start_date: date, end_date: date) -> bool:
+        """Check if universe has any snapshots in the given date range"""
+        if not self.snapshots:
+            return False
+        
+        return any(
+            start_date <= snapshot.snapshot_date <= end_date
+            for snapshot in self.snapshots
+        )
+    
+    def get_snapshot_count(self) -> int:
+        """Get total number of snapshots for this universe"""
+        return len(self.snapshots) if self.snapshots else 0
     
     def to_dict(self) -> Dict[str, Any]:
-        """Enhanced to_dict with asset relationship data"""
+        """Enhanced to_dict with asset relationship data and temporal information"""
         base_dict = super().to_dict()
         base_dict.update({
             'name': self.name,
@@ -101,6 +211,10 @@ class Universe(BaseModel):
             'turnover_rate': self.turnover_rate,
             'asset_count': self.get_asset_count(),
             'symbols': self.get_symbols(),  # For API compatibility
-            'assets': self.get_assets()  # Full asset data with metadata
+            'assets': self.get_assets(),  # Full asset data with metadata
+            # NEW: Temporal universe information (Sprint 2.5)
+            'snapshot_count': self.get_snapshot_count(),
+            'has_snapshots': self.get_snapshot_count() > 0,
+            'latest_snapshot_date': self.get_latest_snapshot().snapshot_date.isoformat() if self.get_latest_snapshot() else None
         })
         return base_dict

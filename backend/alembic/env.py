@@ -13,6 +13,8 @@ from app.models.base import Base
 # Import all models to ensure they're registered with SQLAlchemy
 from app.models.user import User
 from app.models.universe import Universe
+from app.models.universe_snapshot import UniverseSnapshot  # Sprint 2.5: Temporal universe system
+from app.models.asset import Asset, UniverseAsset  # Phase 2: Asset models
 from app.models.strategy import Strategy
 from app.models.portfolio import Portfolio, PortfolioAllocation
 from app.models.execution import Order, Execution
