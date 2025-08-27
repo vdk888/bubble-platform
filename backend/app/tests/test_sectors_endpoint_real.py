@@ -47,7 +47,7 @@ class TestSectorsEndpointReal:
                 market_cap=1000000000 + i * 100000000,  # Varied market caps
                 pe_ratio=15.5 + i,
                 dividend_yield=0.02 + i * 0.005,
-                last_updated=datetime.utcnow()
+                last_validated_at=datetime.utcnow()
             )
             db_session.add(asset)
             assets_created.append(asset)
@@ -62,7 +62,7 @@ class TestSectorsEndpointReal:
             market_cap=500000000,
             pe_ratio=20.0,
             dividend_yield=0.0,
-            last_updated=datetime.utcnow()
+            last_validated_at=datetime.utcnow()
         )
         db_session.add(duplicate_asset)
         assets_created.append(duplicate_asset)
@@ -217,8 +217,8 @@ class TestSectorsEndpointReal:
         # Act: Call endpoint without authentication
         response = client.get("/api/v1/assets/sectors")
         
-        # Assert: Should return 401 Unauthorized
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        # Assert: Should return 403 Forbidden (no credentials provided)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
     
     def test_sectors_sql_injection_prevention(
         self,
@@ -240,7 +240,7 @@ class TestSectorsEndpointReal:
             market_cap=1000000,
             pe_ratio=15.0,
             dividend_yield=0.02,
-            last_updated=datetime.utcnow()
+            last_validated_at=datetime.utcnow()
         )
         db_session.add(asset)
         db_session.commit()
@@ -300,7 +300,7 @@ class TestSectorsEndpointReal:
             market_cap=1000000000,
             pe_ratio=15.0,
             dividend_yield=0.02,
-            last_updated=datetime.utcnow()
+            last_validated_at=datetime.utcnow()
         )
         
         non_validated_asset = Asset(
@@ -312,7 +312,7 @@ class TestSectorsEndpointReal:
             market_cap=500000000,
             pe_ratio=20.0,
             dividend_yield=0.03,
-            last_updated=datetime.utcnow()
+            last_validated_at=datetime.utcnow()
         )
         
         null_sector_asset = Asset(
@@ -324,7 +324,7 @@ class TestSectorsEndpointReal:
             market_cap=200000000,
             pe_ratio=12.0,
             dividend_yield=0.01,
-            last_updated=datetime.utcnow()
+            last_validated_at=datetime.utcnow()
         )
         
         empty_sector_asset = Asset(
@@ -336,7 +336,7 @@ class TestSectorsEndpointReal:
             market_cap=300000000,
             pe_ratio=18.0,
             dividend_yield=0.015,
-            last_updated=datetime.utcnow()
+            last_validated_at=datetime.utcnow()
         )
         
         assets = [validated_asset, non_validated_asset, null_sector_asset, empty_sector_asset]
@@ -402,7 +402,7 @@ class TestSectorsEndpointReal:
             market_cap=1000000000,
             pe_ratio=15.0,
             dividend_yield=0.02,
-            last_updated=datetime.utcnow()
+            last_validated_at=datetime.utcnow()
         )
         db_session.add(asset)
         db_session.commit()
@@ -504,7 +504,7 @@ class TestSectorsEndpointReal:
                 market_cap=1000000 + i * 10000,
                 pe_ratio=10.0 + (i % 30),
                 dividend_yield=0.01 + (i % 50) * 0.001,
-                last_updated=datetime.utcnow()
+                last_validated_at=datetime.utcnow()
             )
             db_session.add(asset)
             assets_created.append(asset)
@@ -566,7 +566,8 @@ def test_sectors_endpoint_docker_integration():
     import json
     
     # Test configuration for Docker environment
-    BASE_URL = "http://localhost:8000"  # Backend running in Docker
+    # When running inside Docker network, use service name instead of localhost
+    BASE_URL = "http://backend:8000"  # Backend service in Docker network
     
     try:
         # First, verify the service is running
@@ -576,7 +577,7 @@ def test_sectors_endpoint_docker_integration():
         
         # Test 1: Authentication required
         response = requests.get(f"{BASE_URL}/api/v1/assets/sectors")
-        assert response.status_code == 401  # Should require authentication
+        assert response.status_code == 403  # Should require authentication (403 when no credentials provided)
         
         # Test 2: Test with mock authentication (if available)
         # Note: This would require setting up a test user in the Docker environment
