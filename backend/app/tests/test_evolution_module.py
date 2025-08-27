@@ -27,19 +27,23 @@ class TestUniverseScheduler:
         """Test creating monthly update schedule"""
         scheduler = UniverseScheduler()
         
+        # Use dates relative to today to ensure test always works
+        start_date = date.today() - timedelta(days=30)  # 1 month ago
+        end_date = date.today() + timedelta(days=365)   # 1 year from now
+        
         schedule = scheduler.schedule_monthly_updates(
             universe_id='test-universe-123',
-            start_date=date(2024, 6, 30),
+            start_date=start_date,
             execution_time='09:00',
-            end_date=date(2025, 6, 30)
+            end_date=end_date
         )
         
         assert schedule.universe_id == 'test-universe-123'
         assert schedule.frequency == ScheduleFrequency.MONTHLY
         assert schedule.status == ScheduleStatus.ACTIVE
         assert schedule.execution_time == '09:00'
-        assert schedule.start_date == date(2024, 6, 30)
-        assert schedule.end_date == date(2025, 6, 30)
+        assert schedule.start_date == start_date
+        assert schedule.end_date == end_date
         
         # Test next execution calculation
         next_execution = schedule.get_next_execution_date()
@@ -53,9 +57,11 @@ class TestUniverseScheduler:
         """Test creating quarterly update schedule"""
         scheduler = UniverseScheduler()
         
+        start_date = date.today() - timedelta(days=60)  # 2 months ago
+        
         schedule = scheduler.schedule_quarterly_updates(
             universe_id='test-universe-456',
-            start_date=date(2024, 3, 31),
+            start_date=start_date,
             execution_time='10:30',
             timezone_name='EST'
         )
@@ -87,15 +93,15 @@ class TestUniverseScheduler:
         """Test retrieving schedules due for execution"""
         scheduler = UniverseScheduler()
         
-        # Create schedule that should be due
+        # Create schedule that should be due (starts today, execution time in the past)
         past_schedule = scheduler.create_custom_schedule(
             universe_id='past-universe',
             frequency=ScheduleFrequency.DAILY,
-            start_date=date.today() - timedelta(days=1),
-            execution_time='09:00'
+            start_date=date.today(),
+            execution_time='08:00'  # Use 8 AM to ensure it's in the past
         )
         
-        # Create schedule that shouldn't be due yet
+        # Create schedule that shouldn't be due yet (starts in future)
         future_schedule = scheduler.create_custom_schedule(
             universe_id='future-universe',
             frequency=ScheduleFrequency.DAILY,
@@ -103,8 +109,11 @@ class TestUniverseScheduler:
             execution_time='09:00'
         )
         
-        # Test getting due schedules
-        check_time = datetime.now().replace(hour=10, minute=0)  # After 9 AM
+        # Test getting due schedules - use a time after 8 AM but before current time
+        from datetime import timezone
+        check_time = datetime.combine(date.today(), datetime.min.time()).replace(
+            hour=9, minute=0, tzinfo=timezone.utc
+        )
         due_schedules = scheduler.get_due_schedules(check_time)
         
         # Should include past schedule, not future schedule

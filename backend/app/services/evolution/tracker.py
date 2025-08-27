@@ -325,6 +325,12 @@ class UniverseTracker:
         period_turnovers = []
         all_assets_by_period = []
         
+        # Collect asset sets from ALL snapshots for stability analysis
+        for i in range(len(snapshots)):
+            assets = self._parse_assets(snapshots[i].get('assets', []))
+            all_assets_by_period.append(set(assets.keys()))
+        
+        # Calculate turnovers between consecutive periods
         for i in range(1, len(snapshots)):
             # Track changes between consecutive snapshots
             analysis = self.track_universe_changes(
@@ -333,10 +339,6 @@ class UniverseTracker:
                 snapshots[i]
             )
             period_turnovers.append(analysis.turnover_rate)
-            
-            # Collect asset sets for stability analysis
-            assets = self._parse_assets(snapshots[i].get('assets', []))
-            all_assets_by_period.append(set(assets.keys()))
         
         # Basic statistics
         average_turnover = statistics.mean(period_turnovers) if period_turnovers else 0.0
@@ -552,8 +554,8 @@ class UniverseTracker:
                 asset_counts[asset] += 1
         
         total_periods = len(asset_sets_by_period)
-        core_threshold = 0.8 * total_periods
-        volatile_threshold = 0.3 * total_periods
+        core_threshold = 0.8 * total_periods  # Present in 80%+ of periods
+        volatile_threshold = 0.5 * total_periods  # Present in <50% of periods
         
         core_assets = [
             asset for asset, count in asset_counts.items()
@@ -562,7 +564,7 @@ class UniverseTracker:
         
         volatile_assets = [
             asset for asset, count in asset_counts.items()
-            if count <= volatile_threshold
+            if count < volatile_threshold  # Changed from <= to < for better detection
         ]
         
         return core_assets, volatile_assets

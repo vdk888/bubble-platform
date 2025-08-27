@@ -3,6 +3,7 @@ Universe Management API Endpoints.
 Following Phase 2 Step 4 specifications with AI-friendly response format.
 """
 from typing import List, Optional, Dict, Any
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -11,6 +12,7 @@ from ...core.database import get_db
 from ..v1.auth import get_current_user
 from ...models.user import User
 from ...services.universe_service import UniverseService
+from ...services.temporal_universe_service import TemporalUniverseService
 from ...services.interfaces.base import ServiceResult
 
 router = APIRouter()
@@ -67,9 +69,49 @@ class AIAssetOperationResponse(BaseModel):
     next_actions: List[str] = []
     metadata: dict = {}
 
-# Initialize service (dependency injection pattern)
+# Temporal API Response Models
+class UniverseSnapshotResponse(BaseModel):
+    id: str
+    universe_id: str
+    snapshot_date: str
+    assets: List[Dict[str, Any]]
+    turnover_rate: Optional[float] = None
+    assets_added: Optional[List[str]] = None
+    assets_removed: Optional[List[str]] = None
+    screening_criteria: Optional[Dict[str, Any]] = None
+    performance_metrics: Optional[Dict[str, Any]] = None
+    created_at: str
+
+class UniverseTimelineResponse(BaseModel):
+    success: bool
+    data: Optional[List[UniverseSnapshotResponse]] = None
+    message: str
+    next_actions: List[str] = []
+    metadata: dict = {}
+
+class UniverseCompositionResponse(BaseModel):
+    success: bool
+    data: Optional[Dict[str, Any]] = None  # Point-in-time composition data
+    message: str
+    next_actions: List[str] = []
+    metadata: dict = {}
+
+class SnapshotCreateRequest(BaseModel):
+    snapshot_date: Optional[str] = None  # ISO date string, defaults to today
+    screening_criteria: Optional[Dict[str, Any]] = None
+    force_recreation: Optional[bool] = False
+
+class BackfillRequest(BaseModel):
+    start_date: str  # ISO date string
+    end_date: str    # ISO date string
+    frequency: Optional[str] = "monthly"  # daily, weekly, monthly, quarterly
+
+# Initialize services (dependency injection pattern)
 def get_universe_service(db: Session = Depends(get_db)) -> UniverseService:
     return UniverseService(db)
+
+def get_temporal_universe_service(db: Session = Depends(get_db)) -> TemporalUniverseService:
+    return TemporalUniverseService(db)
 
 @router.get("/", response_model=AIUniverseListResponse, summary="List user's universes")
 async def list_universes(
@@ -614,5 +656,627 @@ async def remove_assets(
             "universe_name": universe.name,
             "operation_type": "removal",
             "turnover_impact": bulk_result.get("success_count", 0) > 0
+        }
+    )
+
+# =========================================================================
+# TEMPORAL UNIVERSE ENDPOINTS - Sprint 2.5 Part D Implementation
+# =========================================================================
+
+@router.get("/{universe_id}/timeline", response_model=UniverseTimelineResponse, summary="Get universe evolution timeline")
+async def get_universe_timeline(
+    universe_id: str,
+    start_date: Optional[date] = Query(None, description="Start date for timeline (ISO format)"),
+    end_date: Optional[date] = Query(None, description="End date for timeline (ISO format)"),
+    frequency: Optional[str] = Query("monthly", description="Timeline frequency: daily, weekly, monthly, quarterly"),
+    current_user: User = Depends(get_current_user),
+    universe_service: UniverseService = Depends(get_universe_service)
+):
+    """
+    Get universe evolution timeline showing historical snapshots.
+    
+    Returns temporal view of universe composition changes over time,
+    enabling analysis of turnover patterns and evolution trends.
+    
+    Features:
+    - Configurable date range and frequency
+    - Turnover analysis between periods
+    - Asset addition/removal tracking
+    - Performance metrics evolution
+    """
+    # Verify universe ownership
+    get_result = await universe_service.get_universe_by_id(universe_id)
+    
+    if not get_result.success:
+        if "not found" in get_result.error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=get_result.error
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=get_result.error
+            )
+    
+    universe = get_result.data
+    if universe.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Universe belongs to another user"
+        )
+    
+    # Get timeline data using existing temporal service method
+    result = await universe_service.get_universe_timeline(
+        universe_id=universe_id,
+        start_date=start_date,
+        end_date=end_date,
+        frequency=frequency
+    )
+    
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error
+        )
+    
+    timeline_data = result.data
+    snapshots = timeline_data.get("snapshots", [])
+    
+    # Convert to response format
+    snapshot_responses = []
+    for snapshot in snapshots:
+        # Handle both dict and object formats from service
+        if isinstance(snapshot, dict):
+            snapshot_responses.append(UniverseSnapshotResponse(
+                id=snapshot["id"],
+                universe_id=snapshot["universe_id"],
+                snapshot_date=snapshot["snapshot_date"],
+                assets=snapshot["assets"],
+                turnover_rate=snapshot.get("turnover_rate"),
+                assets_added=snapshot.get("assets_added"),
+                assets_removed=snapshot.get("assets_removed"),
+                screening_criteria=snapshot.get("screening_criteria"),
+                performance_metrics=snapshot.get("performance_metrics"),
+                created_at=snapshot["created_at"]
+            ))
+        else:
+            # Object format
+            snapshot_responses.append(UniverseSnapshotResponse(
+                id=snapshot.id,
+                universe_id=snapshot.universe_id,
+                snapshot_date=snapshot.snapshot_date.isoformat(),
+                assets=snapshot.assets,
+                turnover_rate=float(snapshot.turnover_rate) if snapshot.turnover_rate else None,
+                assets_added=snapshot.assets_added,
+                assets_removed=snapshot.assets_removed,
+                screening_criteria=snapshot.screening_criteria,
+                performance_metrics=snapshot.performance_metrics,
+                created_at=snapshot.created_at.isoformat()
+            ))
+    
+    # AI-friendly next actions
+    next_actions = ["view_universe_details"]
+    if snapshot_responses:
+        next_actions.extend([
+            "create_universe_snapshot",
+            "analyze_turnover_patterns",
+            "run_backtest_with_temporal_data",
+            "view_composition_at_date"
+        ])
+    else:
+        next_actions.extend([
+            "create_universe_snapshot",
+            "backfill_universe_history"
+        ])
+    
+    return UniverseTimelineResponse(
+        success=True,
+        data=snapshot_responses,
+        message=f"Retrieved {len(snapshot_responses)} snapshot(s) for universe timeline",
+        next_actions=next_actions,
+        metadata={
+            "universe_id": universe_id,
+            "universe_name": universe.name,
+            "timeline_period": f"{start_date or 'earliest'} to {end_date or 'latest'}",
+            "frequency": frequency,
+            "total_snapshots": len(snapshot_responses),
+            "date_range": timeline_data.get("date_range", {}),
+            "turnover_stats": timeline_data.get("turnover_analysis", {})
+        }
+    )
+
+@router.get("/{universe_id}/snapshots", response_model=UniverseTimelineResponse, summary="Get all universe snapshots")
+async def get_universe_snapshots(
+    universe_id: str,
+    limit: Optional[int] = Query(50, description="Maximum number of snapshots to return"),
+    offset: Optional[int] = Query(0, description="Number of snapshots to skip"),
+    current_user: User = Depends(get_current_user),
+    universe_service: UniverseService = Depends(get_universe_service)
+):
+    """
+    Get all historical snapshots for a universe with pagination support.
+    
+    Returns complete snapshot history for analysis and debugging.
+    Useful for understanding universe evolution patterns and data quality.
+    """
+    # Verify universe ownership
+    get_result = await universe_service.get_universe_by_id(universe_id)
+    
+    if not get_result.success:
+        if "not found" in get_result.error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=get_result.error
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=get_result.error
+            )
+    
+    universe = get_result.data
+    if universe.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Universe belongs to another user"
+        )
+    
+    # Get all snapshots using timeline method with no date restrictions
+    result = await universe_service.get_universe_timeline(
+        universe_id=universe_id,
+        start_date=None,  # Get all historical data
+        end_date=None,
+        frequency="all"  # Get all snapshots regardless of frequency
+    )
+    
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error
+        )
+    
+    timeline_data = result.data
+    all_snapshots = timeline_data.get("snapshots", [])
+    
+    # Apply pagination
+    total_snapshots = len(all_snapshots)
+    paginated_snapshots = all_snapshots[offset:offset + limit]
+    
+    # Convert to response format
+    snapshot_responses = []
+    for snapshot in paginated_snapshots:
+        if isinstance(snapshot, dict):
+            snapshot_responses.append(UniverseSnapshotResponse(
+                id=snapshot["id"],
+                universe_id=snapshot["universe_id"],
+                snapshot_date=snapshot["snapshot_date"],
+                assets=snapshot["assets"],
+                turnover_rate=snapshot.get("turnover_rate"),
+                assets_added=snapshot.get("assets_added"),
+                assets_removed=snapshot.get("assets_removed"),
+                screening_criteria=snapshot.get("screening_criteria"),
+                performance_metrics=snapshot.get("performance_metrics"),
+                created_at=snapshot["created_at"]
+            ))
+        else:
+            snapshot_responses.append(UniverseSnapshotResponse(
+                id=snapshot.id,
+                universe_id=snapshot.universe_id,
+                snapshot_date=snapshot.snapshot_date.isoformat(),
+                assets=snapshot.assets,
+                turnover_rate=float(snapshot.turnover_rate) if snapshot.turnover_rate else None,
+                assets_added=snapshot.assets_added,
+                assets_removed=snapshot.assets_removed,
+                screening_criteria=snapshot.screening_criteria,
+                performance_metrics=snapshot.performance_metrics,
+                created_at=snapshot.created_at.isoformat()
+            ))
+    
+    # AI-friendly next actions
+    next_actions = ["create_universe_snapshot", "view_universe_details"]
+    if snapshot_responses:
+        next_actions.extend([
+            "get_universe_timeline",
+            "analyze_snapshot_details",
+            "compare_snapshots"
+        ])
+    if total_snapshots > offset + limit:
+        next_actions.append("load_more_snapshots")
+    
+    return UniverseTimelineResponse(
+        success=True,
+        data=snapshot_responses,
+        message=f"Retrieved {len(snapshot_responses)} of {total_snapshots} total snapshots",
+        next_actions=next_actions,
+        metadata={
+            "universe_id": universe_id,
+            "universe_name": universe.name,
+            "total_snapshots": total_snapshots,
+            "returned_snapshots": len(snapshot_responses),
+            "pagination": {
+                "limit": limit,
+                "offset": offset,
+                "has_more": total_snapshots > offset + limit
+            }
+        }
+    )
+
+@router.post("/{universe_id}/snapshots", response_model=UniverseTimelineResponse, status_code=status.HTTP_201_CREATED, summary="Create universe snapshot")
+async def create_universe_snapshot(
+    universe_id: str,
+    snapshot_data: SnapshotCreateRequest,
+    current_user: User = Depends(get_current_user),
+    universe_service: UniverseService = Depends(get_universe_service)
+):
+    """
+    Create a new universe snapshot capturing current composition.
+    
+    Features:
+    - Point-in-time universe composition capture
+    - Automatic turnover calculation vs previous snapshot
+    - Asset change tracking (additions/removals)
+    - Performance metrics calculation
+    - Configurable snapshot date (defaults to today)
+    """
+    # Verify universe ownership
+    get_result = await universe_service.get_universe_by_id(universe_id)
+    
+    if not get_result.success:
+        if "not found" in get_result.error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=get_result.error
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=get_result.error
+            )
+    
+    universe = get_result.data
+    if universe.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Universe belongs to another user"
+        )
+    
+    # Parse snapshot date if provided
+    snapshot_date = None
+    if snapshot_data.snapshot_date:
+        try:
+            from datetime import datetime
+            snapshot_date = datetime.fromisoformat(snapshot_data.snapshot_date).date()
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid snapshot_date format. Use ISO format (YYYY-MM-DD)"
+            )
+    
+    # Create snapshot using existing temporal service method
+    result = await universe_service.create_universe_snapshot(
+        universe_id=universe_id,
+        snapshot_date=snapshot_date,
+        screening_criteria=snapshot_data.screening_criteria,
+        force_recreation=snapshot_data.force_recreation or False
+    )
+    
+    if not result.success:
+        if "already exists" in result.error and not snapshot_data.force_recreation:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"{result.error}. Use force_recreation=true to overwrite."
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.error
+            )
+    
+    snapshot = result.data
+    
+    # Convert to response format
+    if isinstance(snapshot, dict):
+        snapshot_response = UniverseSnapshotResponse(
+            id=snapshot["id"],
+            universe_id=snapshot["universe_id"],
+            snapshot_date=snapshot["snapshot_date"],
+            assets=snapshot["assets"],
+            turnover_rate=snapshot.get("turnover_rate"),
+            assets_added=snapshot.get("assets_added"),
+            assets_removed=snapshot.get("assets_removed"),
+            screening_criteria=snapshot.get("screening_criteria"),
+            performance_metrics=snapshot.get("performance_metrics"),
+            created_at=snapshot["created_at"]
+        )
+    else:
+        snapshot_response = UniverseSnapshotResponse(
+            id=snapshot.id,
+            universe_id=snapshot.universe_id,
+            snapshot_date=snapshot.snapshot_date.isoformat(),
+            assets=snapshot.assets,
+            turnover_rate=float(snapshot.turnover_rate) if snapshot.turnover_rate else None,
+            assets_added=snapshot.assets_added,
+            assets_removed=snapshot.assets_removed,
+            screening_criteria=snapshot.screening_criteria,
+            performance_metrics=snapshot.performance_metrics,
+            created_at=snapshot.created_at.isoformat()
+        )
+    
+    # AI-friendly next actions
+    next_actions = [
+        "get_universe_timeline",
+        "view_snapshot_details",
+        "compare_with_previous_snapshot"
+    ]
+    if snapshot_response.turnover_rate and snapshot_response.turnover_rate > 0:
+        next_actions.append("analyze_turnover_impact")
+    if snapshot_response.assets:
+        next_actions.extend([
+            "run_backtest_with_snapshot",
+            "create_strategy_from_snapshot"
+        ])
+    
+    return UniverseTimelineResponse(
+        success=True,
+        data=[snapshot_response],
+        message=f"Universe snapshot created successfully for {snapshot_response.snapshot_date}",
+        next_actions=next_actions,
+        metadata={
+            "universe_id": universe_id,
+            "universe_name": universe.name,
+            "snapshot_date": snapshot_response.snapshot_date,
+            "asset_count": len(snapshot_response.assets),
+            "turnover_rate": snapshot_response.turnover_rate,
+            "has_changes": bool(snapshot_response.assets_added or snapshot_response.assets_removed),
+            "creation_method": "api_manual"
+        }
+    )
+
+@router.get("/{universe_id}/composition/{composition_date}", response_model=UniverseCompositionResponse, summary="Get composition at specific date")
+async def get_composition_at_date(
+    universe_id: str,
+    composition_date: date,
+    current_user: User = Depends(get_current_user),
+    universe_service: UniverseService = Depends(get_universe_service),
+    temporal_service: TemporalUniverseService = Depends(get_temporal_universe_service)
+):
+    """
+    Get universe composition at a specific historical date.
+    
+    Returns the exact universe state as of the specified date,
+    using the closest available snapshot or interpolation.
+    
+    Features:
+    - Point-in-time composition retrieval
+    - Snapshot-based historical accuracy
+    - Context information about data source
+    - Asset metadata at the specified date
+    """
+    # Verify universe ownership
+    get_result = await universe_service.get_universe_by_id(universe_id)
+    
+    if not get_result.success:
+        if "not found" in get_result.error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=get_result.error
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=get_result.error
+            )
+    
+    universe = get_result.data
+    if universe.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Universe belongs to another user"
+        )
+    
+    # Get point-in-time composition using temporal service
+    result = await temporal_service.get_point_in_time_composition(
+        universe_id=universe_id,
+        target_date=composition_date
+    )
+    
+    if not result.success:
+        if "no snapshots found" in result.error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No snapshot data available for universe on or before {composition_date}"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.error
+            )
+    
+    composition_data = result.data
+    
+    # AI-friendly next actions
+    next_actions = [
+        "view_universe_details",
+        "get_universe_timeline",
+        "compare_with_current_composition"
+    ]
+    
+    if composition_data.get("assets"):
+        next_actions.extend([
+            "run_backtest_from_date",
+            "analyze_performance_since_date",
+            "create_strategy_from_composition"
+        ])
+    
+    # Check if this is an exact match or interpolated
+    is_exact_match = composition_data.get("snapshot_date") == composition_date.isoformat()
+    
+    return UniverseCompositionResponse(
+        success=True,
+        data=composition_data,
+        message=f"Retrieved universe composition for {composition_date} ({'exact match' if is_exact_match else 'nearest snapshot'})",
+        next_actions=next_actions,
+        metadata={
+            "universe_id": universe_id,
+            "universe_name": universe.name,
+            "requested_date": composition_date.isoformat(),
+            "actual_snapshot_date": composition_data.get("snapshot_date"),
+            "is_exact_match": is_exact_match,
+            "asset_count": len(composition_data.get("assets", [])),
+            "data_source": composition_data.get("source", "snapshot"),
+            "context": composition_data.get("context", {})
+        }
+    )
+
+@router.post("/{universe_id}/backfill", response_model=UniverseTimelineResponse, summary="Generate historical snapshots")
+async def backfill_universe_history(
+    universe_id: str,
+    backfill_data: BackfillRequest,
+    current_user: User = Depends(get_current_user),
+    universe_service: UniverseService = Depends(get_universe_service)
+):
+    """
+    Generate historical snapshots for a universe over a specified period.
+    
+    Creates multiple snapshots at regular intervals to build complete
+    temporal history. Useful for backtesting and historical analysis.
+    
+    Features:
+    - Configurable date range and frequency
+    - Bulk snapshot generation
+    - Automatic turnover calculation
+    - Progress tracking and error handling
+    - Validation against existing snapshots
+    """
+    # Verify universe ownership
+    get_result = await universe_service.get_universe_by_id(universe_id)
+    
+    if not get_result.success:
+        if "not found" in get_result.error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=get_result.error
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=get_result.error
+            )
+    
+    universe = get_result.data
+    if universe.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Universe belongs to another user"
+        )
+    
+    # Parse dates
+    try:
+        from datetime import datetime
+        start_date = datetime.fromisoformat(backfill_data.start_date).date()
+        end_date = datetime.fromisoformat(backfill_data.end_date).date()
+        
+        if start_date >= end_date:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="start_date must be before end_date"
+            )
+            
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date format. Use ISO format (YYYY-MM-DD)"
+        )
+    
+    # Validate frequency
+    valid_frequencies = ["daily", "weekly", "monthly", "quarterly"]
+    if backfill_data.frequency not in valid_frequencies:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid frequency. Must be one of: {', '.join(valid_frequencies)}"
+        )
+    
+    # Generate historical snapshots using existing service method
+    result = await universe_service.backfill_universe_history(
+        universe_id=universe_id,
+        start_date=start_date,
+        end_date=end_date,
+        frequency=backfill_data.frequency
+    )
+    
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error
+        )
+    
+    backfill_result = result.data
+    created_snapshots = backfill_result.get("created_snapshots", [])
+    
+    # Convert snapshots to response format
+    snapshot_responses = []
+    for snapshot in created_snapshots:
+        if isinstance(snapshot, dict):
+            snapshot_responses.append(UniverseSnapshotResponse(
+                id=snapshot["id"],
+                universe_id=snapshot["universe_id"],
+                snapshot_date=snapshot["snapshot_date"],
+                assets=snapshot["assets"],
+                turnover_rate=snapshot.get("turnover_rate"),
+                assets_added=snapshot.get("assets_added"),
+                assets_removed=snapshot.get("assets_removed"),
+                screening_criteria=snapshot.get("screening_criteria"),
+                performance_metrics=snapshot.get("performance_metrics"),
+                created_at=snapshot["created_at"]
+            ))
+        else:
+            snapshot_responses.append(UniverseSnapshotResponse(
+                id=snapshot.id,
+                universe_id=snapshot.universe_id,
+                snapshot_date=snapshot.snapshot_date.isoformat(),
+                assets=snapshot.assets,
+                turnover_rate=float(snapshot.turnover_rate) if snapshot.turnover_rate else None,
+                assets_added=snapshot.assets_added,
+                assets_removed=snapshot.assets_removed,
+                screening_criteria=snapshot.screening_criteria,
+                performance_metrics=snapshot.performance_metrics,
+                created_at=snapshot.created_at.isoformat()
+            ))
+    
+    # AI-friendly next actions
+    next_actions = [
+        "get_universe_timeline",
+        "view_backfill_summary"
+    ]
+    
+    if snapshot_responses:
+        next_actions.extend([
+            "run_historical_backtest",
+            "analyze_turnover_patterns",
+            "compare_historical_performance"
+        ])
+        
+    # Calculate summary statistics
+    total_requested = backfill_result.get("total_periods", 0)
+    total_created = len(snapshot_responses)
+    skipped_count = backfill_result.get("skipped_existing", 0)
+    
+    return UniverseTimelineResponse(
+        success=True,
+        data=snapshot_responses,
+        message=f"Backfill completed: {total_created} snapshots created, {skipped_count} skipped (already existed)",
+        next_actions=next_actions,
+        metadata={
+            "universe_id": universe_id,
+            "universe_name": universe.name,
+            "backfill_period": f"{backfill_data.start_date} to {backfill_data.end_date}",
+            "frequency": backfill_data.frequency,
+            "total_periods_requested": total_requested,
+            "snapshots_created": total_created,
+            "snapshots_skipped": skipped_count,
+            "success_rate": round((total_created / total_requested * 100) if total_requested > 0 else 0, 1),
+            "processing_time": backfill_result.get("processing_time", 0),
+            "operation_summary": backfill_result.get("summary", {})
         }
     )

@@ -503,15 +503,28 @@ class ImpactAnalyzer:
         idiosyncratic_risk_change = risk_change * 0.2  # 20% idiosyncratic
         concentration_risk_change = (new_concentration - old_concentration) * 0.05
         
-        # Impact assessment
-        if abs(risk_change_percentage) < 2:
-            severity = ImpactSeverity.LOW
-        elif abs(risk_change_percentage) < 5:
-            severity = ImpactSeverity.MODERATE
-        elif abs(risk_change_percentage) < 10:
-            severity = ImpactSeverity.HIGH
-        else:
-            severity = ImpactSeverity.CRITICAL
+        # Impact assessment - consider both magnitude and direction
+        abs_risk_change = abs(risk_change_percentage)
+        
+        # For risk reductions (negative risk_change), be more lenient with severity
+        if risk_change < 0:  # Risk is decreasing - this is generally good
+            if abs_risk_change < 10:
+                severity = ImpactSeverity.LOW
+            elif abs_risk_change < 25:
+                severity = ImpactSeverity.MODERATE
+            elif abs_risk_change < 40:
+                severity = ImpactSeverity.HIGH
+            else:
+                severity = ImpactSeverity.CRITICAL
+        else:  # Risk is increasing - be more strict
+            if abs_risk_change < 2:
+                severity = ImpactSeverity.LOW
+            elif abs_risk_change < 5:
+                severity = ImpactSeverity.MODERATE
+            elif abs_risk_change < 10:
+                severity = ImpactSeverity.HIGH
+            else:
+                severity = ImpactSeverity.CRITICAL
         
         # Recommendations
         recommendations = []

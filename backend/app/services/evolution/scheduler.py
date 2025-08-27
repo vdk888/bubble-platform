@@ -91,11 +91,6 @@ class Schedule:
             return None
         
         now = datetime.now(timezone.utc)
-        current_date = max(self.start_date, now.date())
-        
-        # If we have a specific end date and we've passed it, no next execution
-        if self.end_date and current_date > self.end_date:
-            return None
         
         # Parse execution time
         try:
@@ -103,15 +98,23 @@ class Schedule:
         except ValueError:
             hour, minute = 9, 0  # Default to 9:00 AM
         
-        # Calculate next execution based on frequency
-        next_date = current_date
+        # Start from the start_date or current date, whichever is later
+        current_date = max(self.start_date, now.date())
         
+        # Calculate next execution based on frequency
         if self.frequency == ScheduleFrequency.DAILY:
-            # If today's execution time has passed, schedule for tomorrow
+            # For daily schedules, always return the next scheduled execution
+            # If today's execution time hasn't passed, return today
+            # Otherwise return tomorrow
             today_execution = datetime.combine(current_date, datetime.min.time()).replace(
                 hour=hour, minute=minute, tzinfo=timezone.utc
             )
-            if now >= today_execution:
+            
+            if now < today_execution:
+                # Today's execution hasn't happened yet
+                next_date = current_date
+            else:
+                # Today's execution has passed, next is tomorrow
                 next_date = current_date + timedelta(days=1)
                 
         elif self.frequency == ScheduleFrequency.WEEKLY:
@@ -126,11 +129,48 @@ class Schedule:
             next_date = current_date + timedelta(days=days_ahead)
             
         elif self.frequency == ScheduleFrequency.MONTHLY:
-            # Next month same day
-            if current_date.month == 12:
-                next_date = current_date.replace(year=current_date.year + 1, month=1)
+            # For monthly, we need to find the next monthly execution
+            # Start from current month and calculate next execution
+            next_date = current_date
+            
+            # If current date is the same as start date and we haven't passed execution time, use today
+            if current_date == self.start_date:
+                current_execution = datetime.combine(current_date, datetime.min.time()).replace(
+                    hour=hour, minute=minute, tzinfo=timezone.utc
+                )
+                if now < current_execution:
+                    # We can still execute today
+                    pass
+                else:
+                    # Move to next month
+                    next_date = self._add_months(current_date, 1)
             else:
-                next_date = current_date.replace(month=current_date.month + 1)
+                # Find next monthly occurrence based on the pattern from start_date
+                # Try to keep the same day of month as start_date
+                target_day = self.start_date.day
+                
+                # Try this month first
+                try:
+                    import calendar
+                    max_day_this_month = calendar.monthrange(current_date.year, current_date.month)[1]
+                    this_month_day = min(target_day, max_day_this_month)
+                    candidate_date = current_date.replace(day=this_month_day)
+                    
+                    candidate_execution = datetime.combine(candidate_date, datetime.min.time()).replace(
+                        hour=hour, minute=minute, tzinfo=timezone.utc
+                    )
+                    
+                    if candidate_execution > now and candidate_date >= self.start_date:
+                        next_date = candidate_date
+                    else:
+                        # Move to next month
+                        next_date = self._add_months(current_date, 1)
+                        max_day_next_month = calendar.monthrange(next_date.year, next_date.month)[1]
+                        next_month_day = min(target_day, max_day_next_month)
+                        next_date = next_date.replace(day=next_month_day)
+                except ValueError:
+                    # Fallback to next month
+                    next_date = self._add_months(current_date, 1)
                 
         elif self.frequency == ScheduleFrequency.QUARTERLY:
             # Next quarter
@@ -140,10 +180,31 @@ class Schedule:
                 new_month -= 12
                 new_year += 1
             next_date = current_date.replace(year=new_year, month=new_month)
+        else:
+            # Default fallback
+            next_date = current_date
+        
+        # If we have a specific end date and we've passed it, no next execution
+        if self.end_date and next_date > self.end_date:
+            return None
         
         return datetime.combine(next_date, datetime.min.time()).replace(
             hour=hour, minute=minute, tzinfo=timezone.utc
         )
+    
+    def _add_months(self, start_date: date, months: int) -> date:
+        """Add months to a date, handling edge cases"""
+        import calendar
+        
+        month = start_date.month - 1 + months
+        year = start_date.year + month // 12
+        month = month % 12 + 1
+        
+        # Handle day overflow (e.g., Jan 31 + 1 month = Feb 28/29)
+        max_day = calendar.monthrange(year, month)[1]
+        day = min(start_date.day, max_day)
+        
+        return start_date.replace(year=year, month=month, day=day)
 
 
 class UniverseScheduler:
@@ -315,17 +376,48 @@ class UniverseScheduler:
         if check_time is None:
             check_time = datetime.now(timezone.utc)
         
+        # Ensure check_time is timezone-aware
+        if check_time.tzinfo is None:
+            check_time = check_time.replace(tzinfo=timezone.utc)
+        
         due_schedules = []
         
         for schedule in self.schedules.values():
             if schedule.status != ScheduleStatus.ACTIVE:
                 continue
-                
-            next_execution = schedule.get_next_execution_date()
-            if next_execution and next_execution <= check_time:
+            
+            # Check if schedule is due for execution
+            if self._is_schedule_due(schedule, check_time):
                 due_schedules.append(schedule)
         
         return due_schedules
+    
+    def _is_schedule_due(self, schedule: Schedule, check_time: datetime) -> bool:
+        """
+        Check if a schedule is due for execution at the given time.
+        
+        This includes both upcoming executions and overdue executions.
+        """
+        # Parse execution time
+        try:
+            hour, minute = map(int, schedule.execution_time.split(':'))
+        except ValueError:
+            hour, minute = 9, 0
+        
+        check_date = check_time.date()
+        
+        # For daily schedules, check if today's execution is due/overdue
+        if schedule.frequency == ScheduleFrequency.DAILY:
+            if check_date >= schedule.start_date:
+                today_execution = datetime.combine(check_date, datetime.min.time()).replace(
+                    hour=hour, minute=minute, tzinfo=timezone.utc
+                )
+                # Schedule is due if the execution time has passed or is now
+                return check_time >= today_execution
+        
+        # For other frequencies, use the standard next_execution logic
+        next_execution = schedule.get_next_execution_date()
+        return next_execution and next_execution <= check_time
     
     def record_execution(
         self,

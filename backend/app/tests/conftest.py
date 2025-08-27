@@ -34,6 +34,8 @@ def pytest_configure(config):
         "real_validation: Tests with real validation (no bypasses)",
         "health_monitoring: Health monitoring tests",
         "api_endpoints: API endpoint tests",
+        "temporal: Temporal universe system tests",
+        "performance: Performance and scalability tests",
     ]
     
     for marker in markers:
