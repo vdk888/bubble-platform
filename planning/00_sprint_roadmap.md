@@ -691,7 +691,7 @@ interface UniverseAITools {
 
 ### **Market Data Foundation with Real-Time Capabilities**
 #### **Monday-Tuesday Deliverables**:
-- Yahoo Finance integration for historical data
+- Yahoo Finance integration for historical data - Use already existing market data service in @interfaces/ and @implementation/ folders
 - **Enhanced real-time price fetching with WebSocket support**
 - **Multi-provider data aggregation (Yahoo Finance + Alpha Vantage backup)**
 - Data caching layer (Redis) with intelligent TTL management

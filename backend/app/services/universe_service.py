@@ -6,10 +6,11 @@ import uuid
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import and_, text
-from datetime import datetime, timezone
+from sqlalchemy import and_, text, select
+from datetime import datetime, timezone, date
 
 from ..models.universe import Universe
+from ..models.universe_snapshot import UniverseSnapshot
 from ..models.asset import Asset, UniverseAsset
 from ..models.user import User
 from ..core.database import get_db
@@ -1121,6 +1122,405 @@ class UniverseService:
                 success=False,
                 error=str(e),
                 message=f"Screening preview failed: {str(e)}"
+            )
+
+    # TEMPORAL UNIVERSE METHODS - Sprint 2.5 Part C Implementation
+    
+    async def create_universe_snapshot(
+        self, 
+        universe_id: str, 
+        snapshot_date: date, 
+        screening_criteria: Dict = None,
+        user_id: str = None
+    ) -> ServiceResult:
+        """
+        Create point-in-time universe snapshot for temporal tracking.
+        
+        Args:
+            universe_id: UUID of universe to snapshot
+            snapshot_date: Date for this snapshot
+            screening_criteria: Optional criteria used to generate this snapshot
+            user_id: Optional user ID for RLS context
+            
+        Returns:
+            ServiceResult with snapshot data and temporal information
+        """
+        try:
+            if user_id:
+                self._set_rls_context(user_id)
+            
+            # Get universe with current composition
+            universe = self.db.query(Universe).options(
+                selectinload(Universe.asset_associations).selectinload(UniverseAsset.asset)
+            ).filter(Universe.id == universe_id).first()
+            
+            if not universe:
+                return ServiceResult(
+                    success=False,
+                    error="Universe not found",
+                    message="Cannot create snapshot for non-existent universe"
+                )
+            
+            if user_id and universe.owner_id != user_id:
+                return ServiceResult(
+                    success=False,
+                    error="Access denied",
+                    message="Cannot create snapshot for universe owned by another user"
+                )
+            
+            # Check if snapshot already exists for this date
+            existing_snapshot = self.db.query(UniverseSnapshot).filter(
+                and_(
+                    UniverseSnapshot.universe_id == universe_id,
+                    UniverseSnapshot.snapshot_date == snapshot_date
+                )
+            ).first()
+            
+            if existing_snapshot:
+                return ServiceResult(
+                    success=False,
+                    error="Snapshot already exists",
+                    message=f"Snapshot for {snapshot_date} already exists",
+                    data=existing_snapshot.to_dict(),
+                    next_actions=["update_existing_snapshot", "choose_different_date"]
+                )
+            
+            # Get current asset composition
+            current_assets = []
+            for assoc in universe.asset_associations:
+                if assoc.asset:
+                    current_assets.append({
+                        'symbol': assoc.asset.symbol,
+                        'name': assoc.asset.name,
+                        'weight': float(assoc.weight) if assoc.weight else None,
+                        'asset_id': assoc.asset.id,
+                        'reason_added': f"Position {assoc.position}",
+                        'sector': assoc.asset.asset_metadata.get('sector', 'Unknown') if assoc.asset.asset_metadata else 'Unknown'
+                    })
+            
+            # Get previous snapshot for turnover calculation
+            previous_snapshot = self.db.query(UniverseSnapshot).filter(
+                and_(
+                    UniverseSnapshot.universe_id == universe_id,
+                    UniverseSnapshot.snapshot_date < snapshot_date
+                )
+            ).order_by(UniverseSnapshot.snapshot_date.desc()).first()
+            
+            # Create snapshot using factory method
+            snapshot = UniverseSnapshot.create_from_universe_state(
+                universe_id=universe_id,
+                snapshot_date=snapshot_date,
+                current_assets=current_assets,
+                screening_criteria=screening_criteria or universe.screening_criteria,
+                previous_snapshot=previous_snapshot
+            )
+            
+            self.db.add(snapshot)
+            self.db.commit()
+            self.db.refresh(snapshot)
+            
+            return ServiceResult(
+                success=True,
+                data=snapshot.to_dict(),
+                message=f"Universe snapshot created for {snapshot_date}",
+                next_actions=[
+                    "view_snapshot_details",
+                    "compare_with_previous",
+                    "schedule_next_snapshot",
+                    "analyze_turnover"
+                ],
+                metadata={
+                    "universe_id": universe_id,
+                    "snapshot_id": snapshot.id,
+                    "asset_count": len(current_assets),
+                    "turnover_rate": float(snapshot.turnover_rate) if snapshot.turnover_rate else 0.0,
+                    "has_previous_snapshot": previous_snapshot is not None
+                }
+            )
+            
+        except Exception as e:
+            self.db.rollback()
+            return ServiceResult(
+                success=False,
+                error=str(e),
+                message="Failed to create universe snapshot"
+            )
+    
+    async def get_universe_timeline(
+        self, 
+        universe_id: str, 
+        start_date: date, 
+        end_date: date,
+        user_id: str = None
+    ) -> ServiceResult:
+        """
+        Get historical universe evolution timeline.
+        
+        Args:
+            universe_id: UUID of universe
+            start_date: Timeline start date
+            end_date: Timeline end date
+            user_id: Optional user ID for RLS context
+            
+        Returns:
+            ServiceResult with timeline data and evolution analysis
+        """
+        try:
+            if user_id:
+                self._set_rls_context(user_id)
+            
+            # Verify universe exists and user has access
+            universe = self.db.query(Universe).filter(Universe.id == universe_id).first()
+            
+            if not universe:
+                return ServiceResult(
+                    success=False,
+                    error="Universe not found",
+                    message="Cannot get timeline for non-existent universe"
+                )
+            
+            if user_id and universe.owner_id != user_id:
+                return ServiceResult(
+                    success=False,
+                    error="Access denied",
+                    message="Cannot access timeline for universe owned by another user"
+                )
+            
+            # Get snapshots in date range
+            snapshots = self.db.query(UniverseSnapshot).filter(
+                and_(
+                    UniverseSnapshot.universe_id == universe_id,
+                    UniverseSnapshot.snapshot_date >= start_date,
+                    UniverseSnapshot.snapshot_date <= end_date
+                )
+            ).order_by(UniverseSnapshot.snapshot_date.asc()).all()
+            
+            if not snapshots:
+                return ServiceResult(
+                    success=False,
+                    error="No snapshots found",
+                    message=f"No snapshots found for {start_date} to {end_date}",
+                    next_actions=[
+                        "create_initial_snapshot",
+                        "backfill_historical_data",
+                        "adjust_date_range"
+                    ]
+                )
+            
+            # Calculate timeline statistics
+            timeline_data = []
+            total_turnover = 0.0
+            asset_count_changes = []
+            
+            for i, snapshot in enumerate(snapshots):
+                snapshot_dict = snapshot.to_dict()
+                
+                # Add evolution metadata
+                if i > 0:
+                    prev_snapshot = snapshots[i-1]
+                    asset_count_change = len(snapshot.assets) - len(prev_snapshot.assets)
+                    asset_count_changes.append(asset_count_change)
+                    
+                    snapshot_dict['evolution'] = {
+                        'asset_count_change': asset_count_change,
+                        'days_since_previous': (snapshot.snapshot_date - prev_snapshot.snapshot_date).days,
+                        'composition_stability': 1.0 - (snapshot.turnover_rate or 0.0)
+                    }
+                
+                timeline_data.append(snapshot_dict)
+                total_turnover += snapshot.turnover_rate or 0.0
+            
+            # Calculate aggregate statistics
+            avg_turnover = total_turnover / len(snapshots) if snapshots else 0.0
+            avg_asset_count = sum(len(s.assets) for s in snapshots) / len(snapshots)
+            
+            return ServiceResult(
+                success=True,
+                data={
+                    "timeline": timeline_data,
+                    "universe_info": {
+                        "id": universe_id,
+                        "name": universe.name,
+                        "description": universe.description
+                    },
+                    "period_analysis": {
+                        "start_date": start_date.isoformat(),
+                        "end_date": end_date.isoformat(),
+                        "snapshot_count": len(snapshots),
+                        "average_turnover": avg_turnover,
+                        "average_asset_count": avg_asset_count,
+                        "total_days": (end_date - start_date).days,
+                        "evolution_stability": 1.0 - avg_turnover
+                    }
+                },
+                message=f"Retrieved {len(snapshots)} snapshots for timeline analysis",
+                next_actions=[
+                    "analyze_turnover_patterns",
+                    "identify_stable_assets", 
+                    "create_evolution_chart",
+                    "export_timeline_data"
+                ],
+                metadata={
+                    "universe_id": universe_id,
+                    "period_start": start_date.isoformat(),
+                    "period_end": end_date.isoformat(),
+                    "data_quality": "high" if len(snapshots) > 4 else "limited"
+                }
+            )
+            
+        except Exception as e:
+            return ServiceResult(
+                success=False,
+                error=str(e),
+                message="Failed to retrieve universe timeline"
+            )
+    
+    async def backfill_universe_history(
+        self,
+        universe_id: str,
+        start_date: date,
+        end_date: date,
+        frequency: str = 'monthly',
+        user_id: str = None
+    ) -> ServiceResult:
+        """
+        Generate historical snapshots using current screening criteria.
+        
+        Args:
+            universe_id: UUID of universe to backfill
+            start_date: Start date for backfill
+            end_date: End date for backfill
+            frequency: Snapshot frequency ('monthly', 'quarterly', 'weekly')
+            user_id: Optional user ID for RLS context
+            
+        Returns:
+            ServiceResult with backfill results and snapshot count
+        """
+        try:
+            if user_id:
+                self._set_rls_context(user_id)
+            
+            # Verify universe exists and user has access
+            universe = self.db.query(Universe).filter(Universe.id == universe_id).first()
+            
+            if not universe:
+                return ServiceResult(
+                    success=False,
+                    error="Universe not found", 
+                    message="Cannot backfill history for non-existent universe"
+                )
+            
+            if user_id and universe.owner_id != user_id:
+                return ServiceResult(
+                    success=False,
+                    error="Access denied",
+                    message="Cannot backfill history for universe owned by another user"
+                )
+            
+            # Generate date sequence based on frequency
+            dates_to_backfill = []
+            current_date = start_date
+            
+            while current_date <= end_date:
+                # Check if snapshot already exists
+                existing = self.db.query(UniverseSnapshot).filter(
+                    and_(
+                        UniverseSnapshot.universe_id == universe_id,
+                        UniverseSnapshot.snapshot_date == current_date
+                    )
+                ).first()
+                
+                if not existing:
+                    dates_to_backfill.append(current_date)
+                
+                # Increment based on frequency
+                if frequency == 'weekly':
+                    from datetime import timedelta
+                    current_date += timedelta(weeks=1)
+                elif frequency == 'monthly':
+                    # Move to next month (approximate)
+                    if current_date.month == 12:
+                        current_date = current_date.replace(year=current_date.year + 1, month=1)
+                    else:
+                        current_date = current_date.replace(month=current_date.month + 1)
+                elif frequency == 'quarterly':
+                    # Move to next quarter
+                    new_month = current_date.month + 3
+                    new_year = current_date.year
+                    if new_month > 12:
+                        new_month -= 12
+                        new_year += 1
+                    current_date = current_date.replace(year=new_year, month=new_month)
+                else:
+                    raise ValueError(f"Unsupported frequency: {frequency}")
+            
+            # Create snapshots for each date
+            created_snapshots = []
+            failed_dates = []
+            
+            for snapshot_date in dates_to_backfill:
+                try:
+                    # For historical backfill, we simulate what the universe would have looked like
+                    # using current composition (in a real implementation, this would use historical data)
+                    snapshot_result = await self.create_universe_snapshot(
+                        universe_id=universe_id,
+                        snapshot_date=snapshot_date,
+                        screening_criteria=universe.screening_criteria,
+                        user_id=user_id
+                    )
+                    
+                    if snapshot_result.success:
+                        created_snapshots.append(snapshot_result.data)
+                    else:
+                        failed_dates.append({
+                            "date": snapshot_date.isoformat(),
+                            "error": snapshot_result.error
+                        })
+                        
+                except Exception as e:
+                    failed_dates.append({
+                        "date": snapshot_date.isoformat(),
+                        "error": str(e)
+                    })
+            
+            success = len(created_snapshots) > 0
+            message = f"Backfilled {len(created_snapshots)} snapshots"
+            if failed_dates:
+                message += f", {len(failed_dates)} failed"
+            
+            return ServiceResult(
+                success=success,
+                data={
+                    "created_snapshots": created_snapshots,
+                    "failed_dates": failed_dates,
+                    "backfill_summary": {
+                        "success_count": len(created_snapshots),
+                        "failure_count": len(failed_dates),
+                        "total_requested": len(dates_to_backfill),
+                        "frequency": frequency,
+                        "start_date": start_date.isoformat(),
+                        "end_date": end_date.isoformat()
+                    }
+                },
+                message=message,
+                next_actions=[
+                    "view_timeline",
+                    "analyze_historical_turnover",
+                    "validate_backfilled_data"
+                ] if success else ["retry_failed_dates", "adjust_date_range"],
+                metadata={
+                    "universe_id": universe_id,
+                    "backfill_frequency": frequency,
+                    "success_rate": len(created_snapshots) / len(dates_to_backfill) if dates_to_backfill else 0.0
+                }
+            )
+            
+        except Exception as e:
+            self.db.rollback()
+            return ServiceResult(
+                success=False,
+                error=str(e),
+                message="Failed to backfill universe history"
             )
 
 
