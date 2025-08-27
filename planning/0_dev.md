@@ -781,10 +781,41 @@ class IScreener(ABC):
     ) -> List[ScreeningResult]:
         pass
 
+# TEMPORAL UNIVERSE PATTERN: Interface for time-evolving universes
+class ITemporalUniverse(ABC):
+    @abstractmethod
+    async def get_composition_at_date(
+        self, universe_id: str, date: datetime
+    ) -> List[Asset]:
+        """Get universe composition at specific historical date"""
+        pass
+    
+    @abstractmethod
+    async def create_snapshot(
+        self, universe_id: str, date: datetime, assets: List[Asset]
+    ) -> UniverseSnapshot:
+        """Create point-in-time universe snapshot"""
+        pass
+
 # 2. Adapter l'existant pour accepter l'interface
 class SignalEngine:
     def __init__(self, screener: IScreener):  # Interface, pas implémentation
         self.screener = screener
+
+class BacktestEngine:
+    def __init__(self, temporal_universe: ITemporalUniverse):
+        self.temporal_universe = temporal_universe
+    
+    async def run_backtest_with_temporal_universe(
+        self, strategy_id: str, start_date: datetime, end_date: datetime
+    ):
+        """Eliminate survivorship bias using historical universe compositions"""
+        # Get universe evolution over backtest period
+        compositions = await self.temporal_universe.get_timeline(
+            strategy.universe_id, start_date, end_date
+        )
+        # Run backtest with evolving universe
+        return await self._run_with_evolving_universe(compositions)
 
 # 3. Implémenter selon le contrat
 class FundamentalScreener(IScreener):
@@ -792,9 +823,18 @@ class FundamentalScreener(IScreener):
         # Implémentation réelle
         pass
 
+class DatabaseTemporalUniverse(ITemporalUniverse):
+    async def get_composition_at_date(self, universe_id: str, date: datetime):
+        # Query universe_snapshots table for point-in-time composition
+        return await self.get_snapshot_at_date(universe_id, date)
+
 # 4. Injection de dépendance pour assembler
 screener = FundamentalScreener(data_provider)
 signal_engine = SignalEngine(screener=screener)
+
+# NEW: Temporal universe dependency injection
+temporal_universe = DatabaseTemporalUniverse(db_session)
+backtest_engine = BacktestEngine(temporal_universe=temporal_universe)
 ```
 
 **Avantages concrets :**

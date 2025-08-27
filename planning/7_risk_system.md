@@ -461,8 +461,13 @@ def audit_portfolio_strategy_risks():
         },
         "survivorship_bias": {
             "risk": "Backtests don't account for delisted assets",
-            "impact": "Overestimated historical performance",
-            "mitigation": "Include delisted assets in historical universe data"
+            "impact": "Overestimated historical performance", 
+            "mitigation": "✅ IMPLEMENTED: Temporal universe snapshots with point-in-time compositions - Sprint 2.5"
+        },
+        "temporal_universe_data_integrity": {
+            "risk": "Universe snapshots corrupted or missing for historical periods",
+            "impact": "Incomplete backtesting data → biased performance metrics",
+            "mitigation": "Database constraints + snapshot validation + backfill procedures"
         },
         
         # 🟡 Medium Risks

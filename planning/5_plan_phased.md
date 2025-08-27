@@ -53,12 +53,15 @@
 #### **📊 Core Services (MVP)**
 
 **📁 `/backend/app/services/universe_service.py`**
-- **Phase**: MVP
+- **Phase**: MVP → Enhanced in Sprint 2.5
 - **Features**: 
   - Manual asset selection (stocks, ETFs, bonds)
   - Basic CRUD operations
   - Asset validation and metadata storage
+  - **🚀 NEW: Temporal universe snapshots with point-in-time composition tracking**
+  - **🚀 NEW: Historical universe evolution timeline for survivorship bias elimination**
 - **API Endpoints**: `GET/POST/PUT/DELETE /api/v1/universes`
+- **🚀 NEW: Temporal APIs**: `/universes/{id}/timeline`, `/universes/{id}/snapshots`, `/universes/{id}/composition/{date}`
 
 **📁 `/backend/app/services/indicator_service.py`**
 - **Phase**: MVP  
@@ -139,8 +142,11 @@
 ```
 
 **📁 `/frontend/src/pages/UniversePage.tsx`**
-- **Phase**: MVP
+- **Phase**: MVP → Enhanced in Sprint 2.5
 - **Features**: Manual asset selection, universe CRUD, basic asset table
+- **🚀 NEW: Universe timeline table showing composition evolution by date/period**
+- **🚀 NEW: Turnover analysis visualization with asset flow tracking**
+- **🚀 NEW: Point-in-time universe composition viewer with historical drill-down**
 
 **📁 `/frontend/src/pages/IndicatorsPage.tsx`**
 - **Phase**: MVP  

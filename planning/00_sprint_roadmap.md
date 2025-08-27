@@ -662,6 +662,29 @@ interface UniverseAITools {
 - ✅ **Scalability**: Architecture supports V1 advanced screener requirements
 - ✅ **Security**: Complete multi-tenant isolation maintained
 
+### **Sprint 2.5: TEMPORAL UNIVERSE SYSTEM** (Week 3.5) 🚀 **NEW**
+**Purpose**: Eliminate survivorship bias and enable time-evolving universe compositions
+
+#### **Critical Enhancement: From Static to Temporal Universe Data**
+- **Current Issue**: Static universe lists create survivorship bias in backtesting
+- **Solution**: Time-series universe snapshots with historical composition tracking
+- **Impact**: Accurate backtesting with realistic universe evolution
+
+#### **Key Deliverables**:
+- ✅ **Database Schema**: `universe_snapshots` table with temporal composition data
+- ✅ **UniverseSnapshot Model**: Point-in-time universe compositions with metadata
+- ✅ **Temporal APIs**: `/universes/{id}/timeline`, `/universes/{id}/snapshots`, `/universes/{id}/composition/{date}`
+- ✅ **Frontend Timeline**: Table view showing universe evolution by date/period
+- ✅ **Dynamic Backtest Engine**: Uses historical universe compositions to eliminate survivorship bias
+- ✅ **Evolution Module**: Scheduler, tracker, transition manager, impact analyzer
+
+#### **Sprint 2.5 Success Metrics**:
+- ✅ **Survivorship Bias Elimination**: Backtests use historical universe compositions
+- ✅ **Timeline Visualization**: Users can view universe evolution over time with turnover analysis
+- ✅ **Data Integrity**: Universe snapshots preserve point-in-time compositions with full metadata
+- ✅ **Performance**: Timeline queries < 200ms for 2+ years of monthly snapshots
+- ✅ **Integration**: Seamless integration with existing Sprint 1-2 architecture
+
 ---
 
 ## **SPRINT 3: MARKET DATA & INDICATORS SERVICE** (Week 4)

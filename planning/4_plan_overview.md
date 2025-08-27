@@ -45,6 +45,7 @@
   - **Indicateurs** : Techniques (RSI, MACD) + alternatifs (Reddit sentiment)
   - **Moteurs backtest** : Basic, VectorBT, QuantConnect, custom
   - **Univers évolutifs** : Mise à jour mensuelle/trimestrielle avec turnover tracking
+  - **🚀 NEW: Temporal Universe System** : Point-in-time snapshots, survivorship bias elimination, historical composition tracking
 
 ### **🏛️ Master Portfolio Service**
 - **Rôle** : Allocation capital entre stratégies, risk parity, rééquilibrage automatique
@@ -188,11 +189,14 @@
 
 ## 📈 **Features Avancées**
 
-### **🎯 Dynamic Universe Screening**
+### **🎯 Dynamic Universe Screening** 🚀 **ENHANCED**
 - **Multi-critères** : Fundamental, quality, momentum, value, ESG
 - **Évolution temporelle** : Monthly/quarterly refresh avec turnover analysis
-- **Impact analysis** : Coûts de transition, attribution performance
+- **🚀 NEW: Temporal Snapshots** : Point-in-time universe compositions with full metadata preservation
+- **🚀 NEW: Survivorship Bias Elimination** : Historical compositions for accurate backtesting
+- **Impact analysis** : Coûts de transition, attribution performance, turnover cost estimation
 - **Data sources** : Financial APIs, analyst estimates, alternative data
+- **🚀 NEW: Timeline Visualization** : Frontend table showing universe evolution by date/period
 
 ### **🧠 Alternative Data Integration**
 - **Social sentiment** : Reddit scraping, Twitter buzz, news analysis
