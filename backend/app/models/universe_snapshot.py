@@ -177,9 +177,16 @@ class UniverseSnapshot(BaseModel):
                 total = len(current_symbols.union(previous_symbols))
                 turnover_rate = changes / total
         
+        # Convert string dates to date objects if needed
+        if isinstance(snapshot_date, str):
+            from datetime import datetime as dt
+            snapshot_date = dt.strptime(snapshot_date, '%Y-%m-%d').date()
+        elif hasattr(snapshot_date, 'date'):
+            snapshot_date = snapshot_date.date()
+        
         return cls(
             universe_id=universe_id,
-            snapshot_date=snapshot_date.date() if hasattr(snapshot_date, 'date') else snapshot_date,
+            snapshot_date=snapshot_date,
             assets=current_assets,
             screening_criteria=screening_criteria or {},
             turnover_rate=turnover_rate,
