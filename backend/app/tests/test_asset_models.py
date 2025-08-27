@@ -18,6 +18,14 @@ from app.models.user import User
 from app.models.universe import Universe
 from app.models.asset import Asset, UniverseAsset
 
+# Sprint 2 test markers for organization and filtering
+pytestmark = [
+    pytest.mark.sprint2,
+    pytest.mark.normalized_asset_model,
+    pytest.mark.unit,
+    pytest.mark.security
+]
+
 
 class TestAssetModel:
     """Test suite for Asset entity model."""

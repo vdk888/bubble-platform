@@ -10,6 +10,15 @@ from app.models.universe import Universe
 from app.models.asset import Asset, UniverseAsset
 from app.services.universe_service import UniverseService, ServiceResult, BulkResult
 
+# Sprint 2 test markers for organization and filtering
+pytestmark = [
+    pytest.mark.sprint2,
+    pytest.mark.universe_management,
+    pytest.mark.normalized_asset_model,
+    pytest.mark.integration,
+    pytest.mark.security
+]
+
 
 class TestUniverseServiceCRUD:
     """Test basic CRUD operations for Universe Service"""

@@ -13,6 +13,15 @@ from app.main import app
 from app.models.user import User, UserRole, SubscriptionTier
 from app.services.interfaces.base import ServiceResult
 
+# Sprint 2 test markers for organization and filtering
+pytestmark = [
+    pytest.mark.sprint2,
+    pytest.mark.asset_validation,
+    pytest.mark.ai_friendly_apis,
+    pytest.mark.api_endpoints,
+    pytest.mark.integration
+]
+
 
 class TestAssetValidationAPI:
     """Test cases for Asset Validation API endpoints"""

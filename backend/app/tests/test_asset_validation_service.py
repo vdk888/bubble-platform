@@ -12,6 +12,14 @@ from app.services.interfaces.data_provider import ValidationResult, AssetInfo, S
 from app.services.implementations.yahoo_data_provider import YahooDataProvider
 from app.services.implementations.alpha_vantage_provider import AlphaVantageProvider
 
+# Sprint 2 test markers for organization and filtering
+pytestmark = [
+    pytest.mark.sprint2,
+    pytest.mark.asset_validation,
+    pytest.mark.mixed_validation_strategy,
+    pytest.mark.integration
+]
+
 
 # Global fixtures for all test classes
 @pytest_asyncio.fixture
