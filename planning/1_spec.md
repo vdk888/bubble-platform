@@ -32,11 +32,17 @@ Provide a clean and intuitive user interface.
 
 Universe Definition (What do I buy?)
 
-Define a set of assets (e.g., ETFs, stocks, bonds, commodities).
+Define a set of assets (e.g., ETFs, stocks, bonds, commodities) with temporal evolution tracking.
 
-Each universe is flexible and customizable.
+Each universe is flexible and customizable with time-series composition data.
 
-API for creating, modifying, and retrieving universes.
+**Temporal Universe Features:**
+- **Universe snapshots stored for each rebalancing period (monthly/quarterly)**
+- **Historical composition tracking to eliminate survivorship bias**
+- **Turnover analysis between periods with cost impact estimation**
+- **Dynamic screening application creating point-in-time snapshots**
+
+API for creating, modifying, and retrieving universes and their historical evolution.
 
 Indicators & Signals (When do I buy?)
 
@@ -70,7 +76,7 @@ Define allocation rules for a given universe and signals.
 
 Simulate weights, performance, and risk.
 
-Track weight evolution over time.
+Track weight evolution and universe composition evolution over time.
 
 API for portfolio optimization and backtesting results.
 
@@ -156,7 +162,7 @@ User Management: Authentication, role management.
 
 Payments: Subscription-based model (Stripe integration).
 
-Backtesting Engine: Strategy simulation with performance and risk metrics.
+Backtesting Engine: Strategy simulation with performance and risk metrics. **Backtesting uses historical universe composition to avoid survivorship bias.**
 
 Live Monitoring: Real-time tracking of strategies and portfolios.
 

@@ -41,6 +41,19 @@ Table view of assets with key metrics.
 
 Editable list (add/remove from universe).
 
+**As a user, I want to view my universe evolution over time so that I can understand how my investment universe has changed and avoid survivorship bias in backtesting.**
+
+**Temporal Universe Acceptance Criteria:**
+
+- **Users can view universe evolution timeline (monthly/quarterly snapshots)**
+- **Timeline shows assets added/removed in each period with turnover rates**  
+- **Universe screening creates historical snapshots, not just current updates**
+- **Each snapshot preserves point-in-time composition with metadata (screening criteria, performance metrics)**
+- **Users can view universe composition at any historical date**
+- **Backtest validation includes turnover impact analysis with transaction cost estimates**
+- **Universe changes are tracked with reasons (screening results, manual additions/removals)**
+- **Timeline interface allows drilling down into specific periods to see detailed asset changes**
+
 Epic 2 – Indicators & Signals
 
 User Stories

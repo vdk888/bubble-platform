@@ -393,26 +393,31 @@ bubble-platform/
 │   │   │   │   │   │                           # • OUTPUT: Custom proprietary universe
 │   │   │   │   │   ├── evolution/              # 📅 ÉVOLUTION TEMPORELLE DES UNIVERS
 │   │   │   │   │   │   ├── __init__.py
-│   │   │   │   │   │   ├── scheduler.py        # • Planification mises à jour univers
+│   │   │   │   │   │   ├── scheduler.py        # ✅ Planification mises à jour univers [READY FOR IMPLEMENTATION]
 │   │   │   │   │   │   │                       # • INPUT: Update frequency (monthly, quarterly, weekly)
 │   │   │   │   │   │   │                       # • OUTPUT: Scheduled universe refreshes
 │   │   │   │   │   │   │                       # • EXEMPLE: schedule_universe_update(frequency="monthly", day=1)
-│   │   │   │   │   │   ├── tracker.py          # • Suivi des changements d'univers
+│   │   │   │   │   │   │                       # • IMPLEMENTATION NOTE: Sprint 2.5 Phase 2 - Core scheduling logic
+│   │   │   │   │   │   ├── tracker.py          # ✅ Suivi des changements d'univers [READY FOR IMPLEMENTATION]
 │   │   │   │   │   │   │                       # • INPUT: Universe snapshots over time
 │   │   │   │   │   │   │                       # • OUTPUT: Addition/removal tracking + turnover metrics
 │   │   │   │   │   │   │                       # • EXEMPLE: track_universe_changes(old_universe, new_universe)
-│   │   │   │   │   │   ├── transition_manager.py # ⚖️ GESTION DES TRANSITIONS INTELLIGENTE
+│   │   │   │   │   │   │                       # • IMPLEMENTATION NOTE: Sprint 2.5 Phase 2 - Snapshot comparison logic
+│   │   │   │   │   │   ├── transition_manager.py # ✅ Gestion des transitions intelligente [READY FOR IMPLEMENTATION]
 │   │   │   │   │   │   │                       # • INPUT: Old universe vs new universe + transition rules
 │   │   │   │   │   │   │                       # • OUTPUT: Gradual transition strategy
 │   │   │   │   │   │   │                       # • EXEMPLE: manage_transition(phase_out_period=30days, min_holding=7days)
-│   │   │   │   │   │   ├── impact_analyzer.py  # • Analyse d'impact des changements
+│   │   │   │   │   │   │                       # • IMPLEMENTATION NOTE: Sprint 2.5 Phase 2 - Transition cost optimization
+│   │   │   │   │   │   ├── impact_analyzer.py  # ✅ Analyse d'impact des changements [READY FOR IMPLEMENTATION]
 │   │   │   │   │   │   │                       # • INPUT: Universe changes + portfolio positions
 │   │   │   │   │   │   │                       # • OUTPUT: Impact analysis & cost estimation
 │   │   │   │   │   │   │                       # • EXEMPLE: analyze_rebalance_impact(turnover=0.3, transaction_costs=0.002)
-│   │   │   │   │   │   └── performance_attribution.py # 📊 ATTRIBUTION DES CHANGEMENTS
+│   │   │   │   │   │   │                       # • IMPLEMENTATION NOTE: Sprint 2.5 Phase 2 - Transaction cost modeling
+│   │   │   │   │   │   └── performance_attribution.py # ✅ Attribution des changements [READY FOR IMPLEMENTATION]
 │   │   │   │   │   │                           # • INPUT: Universe changes + strategy performance
 │   │   │   │   │   │                           # • OUTPUT: Performance attribution to universe vs strategy
 │   │   │   │   │   │                           # • EXEMPLE: attribute_performance(universe_effect=+2%, strategy_effect=+1%)
+│   │   │   │   │   │                           # • IMPLEMENTATION NOTE: Sprint 2.5 Phase 4 - Performance decomposition analysis
 │   │   │   │   │   ├── data_sources/           # 💾 SOURCES DE DONNÉES POUR SCREENING
 │   │   │   │   │   │   ├── __init__.py
 │   │   │   │   │   │   ├── fundamental_data.py # • Provider données fondamentales
@@ -455,11 +460,12 @@ bubble-platform/
 │   │   │   │       ├── __init__.py
 │   │   │   │       ├── engines/                # 🚀 MOTEURS DE BACKTEST POUR UNIVERS DYNAMIQUES
 │   │   │   │       │   ├── __init__.py
-│   │   │   │       │   ├── dynamic_universe_engine.py # 🎯 MOTEUR UNIVERS DYNAMIQUE PRINCIPAL
+│   │   │   │       │   ├── dynamic_universe_engine.py # ✅ Moteur univers dynamique principal [READY FOR IMPLEMENTATION]
 │   │   │   │       │   │                       # • INPUT: Strategy + Time-varying universe definitions
 │   │   │   │       │   │                       # • OUTPUT: Backtest with universe evolution tracking
 │   │   │   │       │   │                       # • EXEMPLE: backtest_with_monthly_screening(strategy, roic_screen, start="2020-01-01")
 │   │   │   │       │   │                       # • FEATURES: Universe turnover analysis, transition costs
+│   │   │   │       │   │                       # • IMPLEMENTATION NOTE: Sprint 2.5 Phase 4 - Survivorship bias elimination engine
 │   │   │   │       │   ├── basic_engine.py     # 🔄 RÉUTILISE portfolio.py existant + ADAPTATION UNIVERS DYNAMIQUE
 │   │   │   │       │   │                       # • INPUT: Strategy + Static OR Dynamic universe
 │   │   │   │       │   │                       # • OUTPUT: Portfolio performance (enhanced with universe tracking)
