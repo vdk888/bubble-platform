@@ -64,7 +64,7 @@
 ### **📡 Data Service**
 - **Rôle** : Données market temps réel, cache intelligent, données alternatives
 - **APIs clés** : `/market-data`, `/real-time`, `/alternative-data`, `/cache`
-- **Sources** : Yahoo Finance, Alpha Vantage, Polygon, Reddit scraping, Twitter sentiment
+- **Sources** : OpenBB Terminal (primary), Yahoo Finance, Alpha Vantage, Economic data, News sentiment
 - **Features** : Cache Redis multi-TTL, validation qualité, streaming WebSocket
 
 ### **🔔 Notification Service**

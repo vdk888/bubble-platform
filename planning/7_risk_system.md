@@ -418,6 +418,16 @@ def audit_indicators_signals_risks():
             "impact": "Acting on outdated information → bad trades",
             "mitigation": "Real-time data timestamps + freshness validation"
         },
+        "openbb_dependency": {
+            "risk": "OpenBB Terminal SDK dependency and versioning issues",
+            "impact": "Primary data source unavailable, fallback to secondary providers",
+            "mitigation": "Version pinning, comprehensive fallback chain, SDK health monitoring"
+        },
+        "data_source_conflicts": {
+            "risk": "Conflicting data between OpenBB, Yahoo, and Alpha Vantage providers",
+            "impact": "Data inconsistency leading to incorrect signals and analysis",
+            "mitigation": "Data validation layer, provider priority weighting, reconciliation alerts"
+        },
         
         # 🟡 Medium Risks
         "signal_overriding": {

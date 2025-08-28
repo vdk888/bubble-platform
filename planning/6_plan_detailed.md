@@ -841,6 +841,11 @@ bubble-platform/
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── providers/                  # Fournisseurs de données
 │   │   │   │   │   ├── __init__.py
+│   │   │   │   │   ├── openbb.py               # 🆕 OpenBB Terminal provider
+│   │   │   │   │   │                           # • INPUT: Symbol + data type
+│   │   │   │   │   │                           # • OUTPUT: Professional-grade data
+│   │   │   │   │   │                           # • FEATURES: Fundamentals, economics, sentiment
+│   │   │   │   │   │                           # • API: Unified interface for multiple sources
 │   │   │   │   │   ├── yahoo.py                # 🔄 RÉUTILISE fetch.py existant
 │   │   │   │   │   │                           # • INPUT: Symbol + date range
 │   │   │   │   │   │                           # • OUTPUT: Yahoo Finance data

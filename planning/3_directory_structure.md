@@ -86,6 +86,10 @@ bubble-platform/
 │   │   │   ├── api/
 │   │   │   ├── core/
 │   │   │   │   ├── providers/
+│   │   │   │   │   ├── openbb_data_provider.py    # 🆕 OpenBB Terminal integration
+│   │   │   │   │   ├── yahoo_data_provider.py     # Existing Yahoo implementation  
+│   │   │   │   │   ├── alpha_vantage_provider.py  # Alpha Vantage provider
+│   │   │   │   │   └── composite_data_provider.py # Multi-provider aggregation
 │   │   │   │   ├── cache/
 │   │   │   │   ├── aggregation/
 │   │   │   │   ├── validation/

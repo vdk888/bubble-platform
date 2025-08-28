@@ -225,7 +225,7 @@
 
 **📁 `/backend/app/services/market_data_service.py`**
 - **Phase**: V1
-- **Features**: Real-time data integration, multiple data sources (Yahoo, Alpha Vantage)
+- **Features**: Real-time data integration, triple-provider sources (OpenBB, Yahoo Finance, Alpha Vantage), professional-grade fundamental data, economic indicators
 
 **📁 `/frontend/src/components/charts/InteractiveChart.tsx`**
 - **Phase**: V1
@@ -258,7 +258,7 @@
   - Advanced workflow orchestration (multi-step strategy creation)
   - Proactive insights and recommendations
   - Advanced context management and user preference learning
-  - Integration with alternative data sources
+  - Integration with alternative data sources (OpenBB economic data, news sentiment, analyst estimates)
   - Enhanced visualization generation capabilities
 
 **📁 `/frontend/src/components/chat/` - V1 Enhancements**

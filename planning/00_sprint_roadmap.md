@@ -687,38 +687,68 @@ interface UniverseAITools {
 
 ---
 
-## **SPRINT 3: MARKET DATA & INDICATORS SERVICE** (Week 4)
+## **SPRINT 3: MARKET DATA & INDICATORS SERVICE WITH OPENBB INTEGRATION** (Week 4)
 
-### **Market Data Foundation with Real-Time Capabilities**
+### **Enhanced Multi-Provider Market Data Foundation**
 #### **Monday-Tuesday Deliverables**:
 - Yahoo Finance integration for historical data - Use already existing market data service in @interfaces/ and @implementation/ folders
+- **🆕 OpenBB Terminal integration for professional-grade financial data**
 - **Enhanced real-time price fetching with WebSocket support**
-- **Multi-provider data aggregation (Yahoo Finance + Alpha Vantage backup)**
+- **Triple-provider data aggregation (OpenBB → Yahoo Finance → Alpha Vantage backup)**
 - Data caching layer (Redis) with intelligent TTL management
 - **Advanced data validation and quality checks with freshness monitoring**
 
-#### **API Endpoints**:
+#### **🆕 OpenBB Integration Benefits**:
+- **Professional financial data access** (economic indicators, analyst estimates, insider trading)
+- **Advanced fundamental data** (detailed financials, ratios, sector comparisons)
+- **Alternative data sources** (news sentiment, social sentiment, economic calendars)
+- **Institutional-grade data quality** with multiple provider aggregation
+- **Cost optimization** through open-source data access
+
+#### **Enhanced API Endpoints**:
 ```python
-GET /api/v1/market-data/historical  # Historical OHLCV data
-GET /api/v1/market-data/current     # Real-time prices
-GET /api/v1/market-data/search      # Asset search
-GET /api/v1/market-data/stream      # WebSocket real-time data stream
-GET /api/v1/market-data/status      # Data provider status and health
+GET /api/v1/market-data/historical       # Historical OHLCV (OpenBB primary)
+GET /api/v1/market-data/current          # Real-time prices (multi-provider)
+GET /api/v1/market-data/fundamentals     # 🆕 OpenBB fundamental data
+GET /api/v1/market-data/economics        # 🆕 Economic indicators via OpenBB
+GET /api/v1/market-data/news-sentiment   # 🆕 News sentiment analysis
+GET /api/v1/market-data/insider-trading  # 🆕 Insider trading data
+GET /api/v1/market-data/analyst-estimates # 🆕 Analyst consensus estimates
+GET /api/v1/market-data/search           # Enhanced asset search
+GET /api/v1/market-data/stream           # WebSocket real-time data stream
+GET /api/v1/market-data/status           # Multi-provider health status
 ```
 
-#### **Enhanced Market Data Features**:
+#### **Enhanced Market Data Features with OpenBB**:
 ```python
-# backend/app/services/market_data_service.py - Enhanced capabilities
+# backend/app/services/market_data_service.py - Enhanced capabilities with OpenBB
 class MarketDataService:
     async def fetch_real_time_data_with_fallback(self, symbols: List[str]):
-        """Multi-provider real-time data with automatic fallback"""
+        """Triple-provider real-time data with automatic fallback"""
         try:
-            # Primary: Yahoo Finance
-            return await self.yahoo_provider.fetch_real_time(symbols)
+            # Primary: OpenBB Terminal
+            return await self.openbb_provider.fetch_real_time(symbols)
         except Exception as e:
-            logger.warning(f"Yahoo Finance failed: {e}, falling back to Alpha Vantage")
-            # Fallback: Alpha Vantage
-            return await self.alpha_vantage_provider.fetch_real_time(symbols)
+            logger.warning(f"OpenBB failed: {e}, falling back to Yahoo Finance")
+            try:
+                # Secondary: Yahoo Finance
+                return await self.yahoo_provider.fetch_real_time(symbols)
+            except Exception as e2:
+                logger.warning(f"Yahoo Finance failed: {e2}, falling back to Alpha Vantage")
+                # Tertiary: Alpha Vantage
+                return await self.alpha_vantage_provider.fetch_real_time(symbols)
+    
+    async def fetch_fundamental_data(self, symbols: List[str]):
+        """OpenBB fundamental data with institutional quality"""
+        return await self.openbb_provider.fetch_fundamental_data(symbols)
+    
+    async def fetch_economic_indicators(self, indicators: List[str]):
+        """Economic indicators via OpenBB Terminal"""
+        return await self.openbb_provider.fetch_economic_data(indicators)
+    
+    async def fetch_news_sentiment(self, symbols: List[str]):
+        """News sentiment analysis via OpenBB"""
+        return await self.openbb_provider.fetch_news_sentiment(symbols)
     
     async def validate_data_freshness(self, data: MarketData, max_age_minutes: int = 15):
         """Enhanced data validation following 1_spec.md requirements"""

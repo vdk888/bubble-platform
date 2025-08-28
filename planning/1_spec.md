@@ -68,6 +68,26 @@ Indicators & Signals (When do I buy?)
 - **POST /api/v1/indicators/calculate** - Calculate individual indicators from market data
 - **POST /api/v1/signals/generate** - Generate composite signals with custom weights
 
+**Data Sources & Providers:**
+- **Primary**: OpenBB Terminal - Professional-grade financial data aggregation
+- **Secondary**: Yahoo Finance - Reliable historical and real-time prices
+- **Tertiary**: Alpha Vantage - Backup for data redundancy
+- **Enhanced Data**: Economic indicators, analyst estimates, insider trading data
+
+**OpenBB Integration Features:**
+- **Professional Data Access**: Multiple data source aggregation through single interface
+- **Advanced Fundamentals**: Detailed financial statements, ratios, sector analysis
+- **Economic Context**: GDP, inflation, interest rates, economic calendar integration
+- **Sentiment Analysis**: News sentiment scoring and social media indicators
+- **Cost Optimization**: Open-source access reduces data costs vs premium providers
+
+**Enhanced Market Data API Endpoints:**
+- **GET /api/v1/market-data/fundamentals** - OpenBB fundamental data (P/E, ROE, debt ratios, sector comparisons)
+- **GET /api/v1/market-data/economics** - Economic indicator time series (GDP, inflation, unemployment)
+- **GET /api/v1/market-data/news-sentiment** - News sentiment analysis with scoring
+- **GET /api/v1/market-data/analyst-estimates** - Consensus analyst estimates and revisions
+- **GET /api/v1/market-data/insider-trading** - Insider trading activity data
+
 Visualize buy/sell signals on charts.
 
 Portfolio Strategy (How much do I buy?)
