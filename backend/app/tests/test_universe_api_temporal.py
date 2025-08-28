@@ -198,7 +198,7 @@ class TestTemporalUniverseAPI:
                 error="Universe not found"
             )
         
-        async def get_universe_timeline_mock(universe_id: str, start_date=None, end_date=None, frequency="monthly"):
+        async def get_universe_timeline_mock(universe_id: str, start_date=None, end_date=None, user_id=None):
             """Mock get_universe_timeline"""
             filtered_snapshots = sample_snapshots.copy()
             
@@ -225,7 +225,7 @@ class TestTemporalUniverseAPI:
                 message=f"Retrieved {len(filtered_snapshots)} snapshots"
             )
         
-        async def create_universe_snapshot_mock(universe_id: str, snapshot_date=None, screening_criteria=None, force_recreation=False):
+        async def create_universe_snapshot_mock(universe_id: str, snapshot_date=None, screening_criteria=None, user_id=None):
             """Mock create_universe_snapshot"""
             if not snapshot_date:
                 snapshot_date = date.today()
@@ -262,7 +262,7 @@ class TestTemporalUniverseAPI:
                 message=f"Snapshot created for {snapshot_date}"
             )
         
-        async def backfill_universe_history_mock(universe_id: str, start_date: date, end_date: date, frequency: str):
+        async def backfill_universe_history_mock(universe_id: str, start_date: date, end_date: date, frequency: str, user_id=None):
             """Mock backfill_universe_history"""
             # Generate mock backfill snapshots
             created_snapshots = []
@@ -495,22 +495,22 @@ class TestTemporalUniverseAPI:
     def test_timeline_requires_authentication(self, client: TestClient):
         """Test that timeline endpoint requires authentication"""
         response = client.get("/api/v1/universes/test-universe-1/timeline")
-        assert response.status_code == 401
+        assert response.status_code == 403  # FastAPI returns 403 for missing Authorization header
 
     def test_snapshots_requires_authentication(self, client: TestClient):
         """Test that snapshots endpoint requires authentication"""
         response = client.get("/api/v1/universes/test-universe-1/snapshots")
-        assert response.status_code == 401
+        assert response.status_code == 403  # FastAPI returns 403 for missing Authorization header
 
     def test_create_snapshot_requires_authentication(self, client: TestClient):
         """Test that create snapshot endpoint requires authentication"""
         response = client.post("/api/v1/universes/test-universe-1/snapshots", json={})
-        assert response.status_code == 401
+        assert response.status_code == 403  # FastAPI returns 403 for missing Authorization header
 
     def test_composition_requires_authentication(self, client: TestClient):
         """Test that composition endpoint requires authentication"""
         response = client.get("/api/v1/universes/test-universe-1/composition/2024-01-01")
-        assert response.status_code == 401
+        assert response.status_code == 403  # FastAPI returns 403 for missing Authorization header
 
     def test_backfill_requires_authentication(self, client: TestClient):
         """Test that backfill endpoint requires authentication"""
@@ -518,7 +518,7 @@ class TestTemporalUniverseAPI:
             "start_date": "2024-01-01",
             "end_date": "2024-02-01"
         })
-        assert response.status_code == 401
+        assert response.status_code == 403  # FastAPI returns 403 for missing Authorization header
 
     def test_universe_ownership_verification(self, authenticated_client):
         """Test that endpoints verify universe ownership"""
@@ -698,7 +698,7 @@ class TestTemporalUniverseAPI:
                 message="Universe found"
             )
         
-        async def create_universe_snapshot_mock(universe_id: str, snapshot_date=None, screening_criteria=None, force_recreation=False):
+        async def create_universe_snapshot_mock(universe_id: str, snapshot_date=None, screening_criteria=None, user_id=None):
             return ServiceResult(
                 success=False,
                 error="Snapshot already exists for date 2024-01-01"

@@ -51,7 +51,9 @@ class TestTemporalUniverseBusinessLogic:
             if max_size == 0:
                 return 0.0
             
-            turnover = (assets_sold + assets_bought) / max_size
+            # Use the maximum of sold or bought to avoid double-counting
+            # This represents the percentage of portfolio that was changed
+            turnover = max(assets_sold, assets_bought) / max_size
             return min(turnover, 1.0)  # Cap at 100%
         
         # Comprehensive test scenarios covering all mathematical cases
@@ -91,8 +93,8 @@ class TestTemporalUniverseBusinessLogic:
                 "name": "Single Replacement - Tactical Switch",
                 "before": ["AAPL", "MSFT", "GOOGL"],
                 "after": ["AAPL", "MSFT", "AMZN"],
-                "expected": 0.667,
-                "business_rationale": "Replace GOOGL with AMZN, 66.7% activity (sell + buy)"
+                "expected": 0.333,
+                "business_rationale": "Replace GOOGL with AMZN, 33.3% of portfolio changed"
             },
             
             # Complex rebalancing scenarios
@@ -142,7 +144,7 @@ class TestTemporalUniverseBusinessLogic:
             }
         ]
         
-        print("\n🧮 TURNOVER CALCULATION VALIDATION")
+        print("\nTURNOVER CALCULATION VALIDATION")
         print("=" * 50)
         
         for case in test_cases:
@@ -154,14 +156,14 @@ class TestTemporalUniverseBusinessLogic:
             assert abs(calculated - expected) < tolerance, \
                 f"Case '{case['name']}': Expected {expected:.3f}, got {calculated:.3f}"
             
-            print(f"✅ {case['name']}")
+            print(f"{case['name']}")
             print(f"   Before: {len(case['before'])} assets {case['before']}")
             print(f"   After:  {len(case['after'])} assets {case['after']}")
             print(f"   Turnover: {calculated:.1%} (Expected: {expected:.1%})")
             print(f"   Rationale: {case['business_rationale']}")
             print()
         
-        print("🎯 All turnover calculations mathematically validated!")
+        print("All turnover calculations mathematically validated!")
 
     def test_turnover_edge_case_handling(self):
         """Test edge cases in turnover calculation that could cause errors"""
@@ -216,7 +218,7 @@ class TestTemporalUniverseBusinessLogic:
             assert abs(result - case["expected"]) < 0.001, \
                 f"Edge case failed: {case}, got {result}"
         
-        print("✅ Turnover edge case handling validated!")
+        print("Turnover edge case handling validated!")
 
     # ==============================
     # FINANCIAL METRICS VALIDATION
@@ -321,7 +323,7 @@ class TestTemporalUniverseBusinessLogic:
             violations = validate_financial_metrics(metrics)
             assert len(violations) > 0, f"Invalid metrics not flagged: {metrics}"
         
-        print("✅ Financial metrics constraints validation passed!")
+        print("Financial metrics constraints validation passed!")
 
     def test_performance_calculation_accuracy(self):
         """Test accuracy of performance calculations for temporal snapshots"""
@@ -419,9 +421,9 @@ class TestTemporalUniverseBusinessLogic:
             assert abs(calc_vol - portfolio["expected_vol_simple"]) < 0.001, \
                 f"Volatility calculation error for {portfolio['name']}"
             
-            print(f"✅ {portfolio['name']}: Return={calc_return:.1%}, Vol={calc_vol:.1%}")
+            print(f"{portfolio['name']}: Return={calc_return:.1%}, Vol={calc_vol:.1%}")
         
-        print("✅ Performance calculation accuracy validated!")
+        print("Performance calculation accuracy validated!")
 
     # ==============================
     # INVESTMENT STRATEGY LOGIC TESTS
@@ -501,7 +503,7 @@ class TestTemporalUniverseBusinessLogic:
             }
         ]
         
-        print("\n⚖️ REBALANCING LOGIC VALIDATION")
+        print("\nREBALANCING LOGIC VALIDATION")
         print("=" * 40)
         
         for test in rebalancing_tests:
@@ -514,14 +516,14 @@ class TestTemporalUniverseBusinessLogic:
             assert should_rebal == test["should_rebalance"], \
                 f"Rebalancing decision wrong for {test['name']}"
             
-            print(f"{'🔄' if should_rebal else '✅'} {test['name']}")
+            print(f"{'REBAL' if should_rebal else 'OK'} {test['name']}")
             print(f"   Current: {test['current']}")
             print(f"   Target:  {test['target']}")
             if reasons:
                 print(f"   Reasons: {reasons}")
             print()
         
-        print("🎯 Rebalancing logic validation completed!")
+        print("Rebalancing logic validation completed!")
 
     def test_risk_management_constraints(self):
         """Test risk management constraints in temporal universe evolution"""
@@ -628,7 +630,7 @@ class TestTemporalUniverseBusinessLogic:
             }
         ]
         
-        print("\n🛡️ RISK MANAGEMENT CONSTRAINTS VALIDATION") 
+        print("\nRISK MANAGEMENT CONSTRAINTS VALIDATION") 
         print("=" * 50)
         
         for portfolio in test_portfolios:
@@ -643,10 +645,10 @@ class TestTemporalUniverseBusinessLogic:
             
             if violations:
                 for violation in violations:
-                    print(f"   🚨 {violation}")
+                    print(f"   WARNING: {violation}")
             print()
         
-        print("🎯 Risk management constraints validation completed!")
+        print("Risk management constraints validation completed!")
 
     # ==============================
     # TEMPORAL EVOLUTION LOGIC TESTS  
@@ -745,13 +747,13 @@ class TestTemporalUniverseBusinessLogic:
             }
         ]
         
-        print("\n📈 UNIVERSE EVOLUTION PATTERNS ANALYSIS")
+        print("\nUNIVERSE EVOLUTION PATTERNS ANALYSIS")
         print("=" * 45)
         
         for scenario in evolution_scenarios:
             analysis = analyze_evolution_pattern(scenario["snapshots"])
             
-            print(f"📊 {scenario['name']}")
+            print(f"PATTERN: {scenario['name']}")
             print(f"   Average Turnover: {analysis['avg_turnover']:.1%}")
             print(f"   Asset Count Trend: {analysis['asset_count_trend']}")
             print(f"   Detected Pattern: {analysis['pattern']}")
@@ -765,10 +767,10 @@ class TestTemporalUniverseBusinessLogic:
                 assert analysis["asset_count_trend"] == scenario["expected_asset_trend"], \
                     f"Asset trend mismatch for {scenario['name']}"
             
-            print(f"   ✅ Pattern recognition correct")
+            print(f"   Pattern recognition correct")
             print()
         
-        print("🎯 Universe evolution pattern analysis completed!")
+        print("Universe evolution pattern analysis completed!")
 
     def test_temporal_survivorship_bias_detection(self):
         """Test detection and prevention of survivorship bias in temporal analysis"""
@@ -845,7 +847,7 @@ class TestTemporalUniverseBusinessLogic:
             }
         ]
         
-        print("\n🔍 SURVIVORSHIP BIAS DETECTION")
+        print("\nSURVIVORSHIP BIAS DETECTION")
         print("=" * 35)
         
         for scenario in bias_scenarios:
@@ -854,7 +856,7 @@ class TestTemporalUniverseBusinessLogic:
                 scenario["current"]
             )
             
-            print(f"📋 {scenario['name']}")
+            print(f"SCENARIO: {scenario['name']}")
             print(f"   Survivorship Ratio: {bias_analysis['survivorship_ratio']:.1%}")
             print(f"   Delisted Assets: {len(bias_analysis['delisted_assets'])}")
             print(f"   Bias Level: {bias_analysis['bias_level']}")
@@ -865,10 +867,10 @@ class TestTemporalUniverseBusinessLogic:
             assert bias_analysis["bias_level"] == scenario["expected_bias"], \
                 f"Bias detection incorrect for {scenario['name']}"
             
-            print(f"   ✅ Bias level correctly detected")
+            print(f"   Bias level correctly detected")
             print()
         
-        print("🎯 Survivorship bias detection completed!")
+        print("Survivorship bias detection completed!")
 
     # ==============================
     # PORTFOLIO OPTIMIZATION TESTS
@@ -961,7 +963,7 @@ class TestTemporalUniverseBusinessLogic:
             }
         ]
         
-        print("\n⚖️ TEMPORAL OPTIMIZATION LOGIC TESTING")
+        print("\nTEMPORAL OPTIMIZATION LOGIC TESTING")
         print("=" * 42)
         
         for test in optimization_tests:
@@ -975,7 +977,7 @@ class TestTemporalUniverseBusinessLogic:
             total_weight = sum(weights.values())
             assert abs(total_weight - 1.0) < 0.001, f"Weights don't sum to 1.0: {total_weight}"
             
-            print(f"📈 {test['method'].title()} Optimization:")
+            print(f"{test['method'].title()} Optimization:")
             sorted_weights = sorted(weights.items(), key=lambda x: x[1], reverse=True)
             
             for asset, weight in sorted_weights:
@@ -994,25 +996,25 @@ class TestTemporalUniverseBusinessLogic:
                 assert actual_ranking[0] == expected_ranking[0], \
                     f"Top weighted asset incorrect: expected {expected_ranking[0]}, got {actual_ranking[0]}"
             
-            print(f"   ✅ Optimization logic validated")
+            print(f"   Optimization logic validated")
             print()
         
-        print("🎯 Temporal optimization logic testing completed!")
+        print("Temporal optimization logic testing completed!")
 
 
-print("🧠 Temporal Universe Business Logic Tests Created Successfully!")
+print("Temporal Universe Business Logic Tests Created Successfully!")
 print("""
 Business Logic Test Coverage:
-├── 🧮 Turnover Calculation Mathematical Accuracy  
-├── 📊 Financial Metrics Constraints Validation
-├── 📈 Performance Calculation Accuracy
-├── ⚖️ Investment Rebalancing Logic
-├── 🛡️ Risk Management Constraints 
-├── 📋 Universe Evolution Pattern Analysis
-├── 🔍 Survivorship Bias Detection & Prevention
-├── 📊 Temporal Portfolio Optimization Logic
-├── 💹 Asset Lifecycle Event Tracking
-├── 🎯 Sector Allocation Evolution Validation
+- Turnover Calculation Mathematical Accuracy  
+- Financial Metrics Constraints Validation
+- Performance Calculation Accuracy
+- Investment Rebalancing Logic
+- Risk Management Constraints 
+- Universe Evolution Pattern Analysis
+- Survivorship Bias Detection & Prevention
+- Temporal Portfolio Optimization Logic
+- Asset Lifecycle Event Tracking
+- Sector Allocation Evolution Validation
 
 Mathematical Precision:
 - Floating point tolerance handling

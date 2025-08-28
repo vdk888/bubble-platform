@@ -33,14 +33,14 @@ async def lifespan(app: FastAPI):
             db_session = SessionLocal()
             rls_success = setup_postgresql_rls(db_session)
             if rls_success:
-                print("✅ PostgreSQL RLS policies configured - multi-tenant isolation active")
+                print("SUCCESS: PostgreSQL RLS policies configured - multi-tenant isolation active")
             else:
-                print("⚠️ PostgreSQL RLS setup failed - check logs")
+                print("WARNING: PostgreSQL RLS setup failed - check logs")
             db_session.close()
         except Exception as e:
-            print(f"⚠️ RLS setup error (non-critical): {e}")
+            print(f"WARNING: RLS setup error (non-critical): {e}")
     else:
-        print("ℹ️ SQLite database - RLS policies not applicable")
+        print("INFO: SQLite database - RLS policies not applicable")
     
     yield
     

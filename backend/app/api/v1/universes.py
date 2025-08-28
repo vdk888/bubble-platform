@@ -711,7 +711,7 @@ async def get_universe_timeline(
         universe_id=universe_id,
         start_date=start_date,
         end_date=end_date,
-        frequency=frequency
+        user_id=current_user.id
     )
     
     if not result.success:
@@ -827,7 +827,7 @@ async def get_universe_snapshots(
         universe_id=universe_id,
         start_date=None,  # Get all historical data
         end_date=None,
-        frequency="all"  # Get all snapshots regardless of frequency
+        user_id=current_user.id
     )
     
     if not result.success:
@@ -958,7 +958,7 @@ async def create_universe_snapshot(
         universe_id=universe_id,
         snapshot_date=snapshot_date,
         screening_criteria=snapshot_data.screening_criteria,
-        force_recreation=snapshot_data.force_recreation or False
+        user_id=current_user.id
     )
     
     if not result.success:
@@ -1202,7 +1202,8 @@ async def backfill_universe_history(
         universe_id=universe_id,
         start_date=start_date,
         end_date=end_date,
-        frequency=backfill_data.frequency
+        frequency=backfill_data.frequency,
+        user_id=current_user.id
     )
     
     if not result.success:

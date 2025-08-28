@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import and_, text, select
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 
 from ..models.universe import Universe
 from ..models.universe_snapshot import UniverseSnapshot
@@ -1129,7 +1129,7 @@ class UniverseService:
     async def create_universe_snapshot(
         self, 
         universe_id: str, 
-        snapshot_date: date, 
+        snapshot_date: Optional[date] = None, 
         screening_criteria: Dict = None,
         user_id: str = None
     ) -> ServiceResult:
@@ -1148,6 +1148,10 @@ class UniverseService:
         try:
             if user_id:
                 self._set_rls_context(user_id)
+            
+            # Handle default date if None provided
+            if snapshot_date is None:
+                snapshot_date = date.today()
             
             # Get universe with current composition
             universe = self.db.query(Universe).options(
@@ -1249,8 +1253,8 @@ class UniverseService:
     async def get_universe_timeline(
         self, 
         universe_id: str, 
-        start_date: date, 
-        end_date: date,
+        start_date: Optional[date] = None, 
+        end_date: Optional[date] = None,
         user_id: str = None
     ) -> ServiceResult:
         """
@@ -1286,6 +1290,12 @@ class UniverseService:
                     message="Cannot access timeline for universe owned by another user"
                 )
             
+            # Handle default dates if None provided
+            if start_date is None:
+                start_date = date.today() - timedelta(days=90)  # Default to 3 months ago
+            if end_date is None:
+                end_date = date.today()  # Default to today
+            
             # Get snapshots in date range
             snapshots = self.db.query(UniverseSnapshot).filter(
                 and_(
@@ -1296,9 +1306,26 @@ class UniverseService:
             ).order_by(UniverseSnapshot.snapshot_date.asc()).all()
             
             if not snapshots:
+                # Instead of failing, return an empty successful result
                 return ServiceResult(
-                    success=False,
-                    error="No snapshots found",
+                    success=True,
+                    data={
+                        "snapshots": [],  # API expects "snapshots" key, not "timeline"
+                        "universe_info": {
+                            "id": universe_id,
+                            "name": universe.name,
+                            "description": universe.description
+                        },
+                        "period_analysis": {
+                            "start_date": start_date.isoformat(),
+                            "end_date": end_date.isoformat(),
+                            "snapshot_count": 0,
+                            "average_turnover": 0.0,
+                            "average_asset_count": 0,
+                            "total_days": (end_date - start_date).days,
+                            "evolution_stability": 1.0
+                        }
+                    },
                     message=f"No snapshots found for {start_date} to {end_date}",
                     next_actions=[
                         "create_initial_snapshot",
@@ -1337,7 +1364,7 @@ class UniverseService:
             return ServiceResult(
                 success=True,
                 data={
-                    "timeline": timeline_data,
+                    "snapshots": timeline_data,  # API expects "snapshots" key
                     "universe_info": {
                         "id": universe_id,
                         "name": universe.name,

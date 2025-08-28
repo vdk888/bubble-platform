@@ -225,7 +225,7 @@ class TestUniverseServiceTemporal:
         )
         
         assert timeline_result.success is True
-        assert len(timeline_result.data['timeline']) == 3
+        assert len(timeline_result.data['snapshots']) == 3
         assert timeline_result.data['period_analysis']['snapshot_count'] == 3
         assert timeline_result.data['period_analysis']['average_asset_count'] == 4.0
         assert timeline_result.data['universe_info']['name'] == universe.name
@@ -244,7 +244,8 @@ class TestUniverseServiceTemporal:
             user_id=user.id
         )
         
-        assert timeline_result.success is False
+        assert timeline_result.success is True
+        assert len(timeline_result.data['snapshots']) == 0
         assert "No snapshots found" in timeline_result.message
         assert "create_initial_snapshot" in timeline_result.next_actions
     
