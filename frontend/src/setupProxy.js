@@ -1,12 +1,17 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 module.exports = function(app) {
-  console.log('🔧 Setting up explicit proxy for /api -> http://backend:8000');
+  // Use localhost for local development, backend for Docker
+  const backendUrl = process.env.DOCKER_ENV === 'true' ? 'http://backend:8000' : 'http://localhost:8000';
+  
+  console.log('🔧 Setting up explicit proxy for /api ->', backendUrl);
   console.log('🔧 This will override any package.json proxy setting for /api paths');
+  console.log('🔧 DOCKER_ENV:', process.env.DOCKER_ENV);
+  
   app.use(
     '/api',
     createProxyMiddleware({
-      target: 'http://backend:8000',
+      target: backendUrl,
       changeOrigin: true,
       logLevel: 'debug',
       secure: false,
@@ -15,7 +20,7 @@ module.exports = function(app) {
         'Host': 'localhost:3000'  // Force correct host header
       },
       onProxyReq: (proxyReq, req, res) => {
-        console.log('🔧 Proxying request:', req.method, req.url, '-> http://backend:8000' + req.url);
+        console.log('🔧 Proxying request:', req.method, req.url, '->', backendUrl + req.url);
         console.log('🔧 Proxy headers:', proxyReq.getHeaders());
       },
       onProxyRes: (proxyRes, req, res) => {
@@ -23,6 +28,7 @@ module.exports = function(app) {
       },
       onError: (err, req, res) => {
         console.error('🚨 Proxy error:', err.message);
+        console.error('🚨 Target URL was:', backendUrl);
         res.writeHead(500, { 'Content-Type': 'text/plain' });
         res.end('Proxy error: ' + err.message);
       }

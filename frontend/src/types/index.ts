@@ -98,6 +98,10 @@ export interface AuthResponse {
 export interface UniverseDashboardProps {
   chatMode?: boolean;
   onToggleChatMode?: () => void;
+  // Enhanced temporal features
+  enableTemporalMode?: boolean;                    // Feature flag to show/hide temporal features
+  defaultTemporalMode?: boolean;                   // Default temporal mode state
+  onTemporalModeChange?: (enabled: boolean) => void; // Callback for mode changes
 }
 
 export interface AssetSearchProps {
@@ -113,6 +117,13 @@ export interface UniverseTableProps {
   onUniverseSelect: (universe: Universe) => void;
   onUniverseEdit: (universe: Universe) => void;
   onUniverseDelete: (universe: Universe) => void;
+  
+  // Enhanced temporal features
+  showTemporalMode?: boolean;           // Toggle temporal features on/off
+  temporalModeEnabled?: boolean;        // Current temporal mode state
+  onTemporalModeToggle?: (enabled: boolean) => void;  // Callback for mode changes
+  onTimelineView?: (universe: Universe) => void;      // Open timeline view
+  onTemporalAnalysis?: (universe: Universe) => void;  // Open temporal analysis
 }
 
 // AI Integration Types

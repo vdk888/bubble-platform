@@ -1,16 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { PlusIcon, SearchIcon, SettingsIcon, MessageSquareIcon } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { PlusIcon, SearchIcon, SettingsIcon, MessageSquareIcon, Clock4Icon, BarChart3Icon, ActivityIcon, LayoutPanelTopIcon } from 'lucide-react';
 import { Universe, Asset, UniverseDashboardProps } from '../../types';
+import { UniverseSnapshot } from '../../types/temporal';
 import { universeAPI } from '../../services/api';
 import UniverseTable from './UniverseTable';
 import UniverseEditor from './UniverseEditor';
 import AssetSearch from './AssetSearch';
 import BulkOperations from './BulkOperations';
 import UniverseAssetTable from './UniverseAssetTable';
+import UniverseTimeline from './UniverseTimeline';
+import UniverseEvolution from './UniverseEvolution';
+import TimelineView from './TimelineView';
+import TurnoverAnalysis from './TurnoverAnalysis';
+import TemporalAnalysisPanel from './TemporalAnalysisPanel';
 
 const UniverseDashboard: React.FC<UniverseDashboardProps> = ({ 
   chatMode = false, 
-  onToggleChatMode 
+  onToggleChatMode,
+  enableTemporalMode = true,
+  defaultTemporalMode = false,
+  onTemporalModeChange
 }) => {
   // State management
   const [universes, setUniverses] = useState<Universe[]>([]);
@@ -20,6 +29,15 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isBulkOperationsOpen, setIsBulkOperationsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Enhanced temporal mode state
+  const [temporalMode, setTemporalMode] = useState(defaultTemporalMode ?? false);
+  const [selectedUniverseForTemporal, setSelectedUniverseForTemporal] = useState<Universe | null>(null);
+  const [temporalView, setTemporalView] = useState<'timeline' | 'evolution' | 'analysis' | null>(null);
+  const [temporalPanelLayout, setTemporalPanelLayout] = useState<'overlay' | 'sidebar' | 'modal'>('overlay');
+  
+  // Legacy state for backward compatibility
+  const [selectedSnapshot, setSelectedSnapshot] = useState<UniverseSnapshot | null>(null);
 
   // Load universes on component mount
   useEffect(() => {
@@ -148,6 +166,60 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
     console.log('Asset selected:', asset);
   };
 
+  // Enhanced temporal mode handlers
+  const handleTemporalModeToggle = useCallback((enabled?: boolean) => {
+    const newMode = enabled !== undefined ? enabled : !temporalMode;
+    setTemporalMode(newMode);
+    
+    if (!newMode) {
+      // Clean up temporal state when disabled
+      setSelectedUniverseForTemporal(null);
+      setTemporalView(null);
+      setSelectedSnapshot(null);
+    }
+    
+    // Notify parent component
+    onTemporalModeChange?.(newMode);
+  }, [temporalMode, onTemporalModeChange]);
+
+  const handleTimelineView = useCallback((universe: Universe) => {
+    setSelectedUniverseForTemporal(universe);
+    setTemporalView('timeline');
+    
+    // Ensure temporal mode is enabled
+    if (!temporalMode) {
+      handleTemporalModeToggle(true);
+    }
+  }, [temporalMode, handleTemporalModeToggle]);
+
+  const handleTemporalAnalysis = useCallback((universe: Universe) => {
+    setSelectedUniverseForTemporal(universe);
+    setTemporalView('analysis');
+    
+    // Ensure temporal mode is enabled
+    if (!temporalMode) {
+      handleTemporalModeToggle(true);
+    }
+  }, [temporalMode, handleTemporalModeToggle]);
+
+  const handleTemporalViewChange = useCallback((view: 'timeline' | 'evolution' | 'analysis' | null) => {
+    setTemporalView(view);
+  }, []);
+
+  const handleTemporalPanelClose = useCallback(() => {
+    setSelectedUniverseForTemporal(null);
+    setTemporalView(null);
+  }, []);
+
+  // Legacy handlers for backward compatibility
+  const handleSnapshotSelect = (snapshot: UniverseSnapshot) => {
+    setSelectedSnapshot(snapshot);
+  };
+
+  const handleUniverseTimeline = (universe: Universe) => {
+    handleTimelineView(universe);
+  };
+
   const handleBulkOperations = () => {
     setIsBulkOperationsOpen(true);
   };
@@ -168,6 +240,41 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
             </div>
             
             <div className="flex space-x-3">
+              {/* Enhanced Temporal Mode Toggle */}
+              {enableTemporalMode && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleTemporalModeToggle()}
+                    className={`inline-flex items-center px-4 py-2 border rounded-lg text-sm font-medium transition-all duration-200 ${
+                      temporalMode
+                        ? 'border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 shadow-sm'
+                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                    title={temporalMode ? 'Exit temporal analysis mode' : 'Enable temporal analysis mode'}
+                  >
+                    <Clock4Icon className={`w-4 h-4 mr-2 ${temporalMode ? 'animate-pulse' : ''}`} />
+                    {temporalMode ? 'Exit Temporal Mode' : 'Temporal Analysis'}
+                  </button>
+                  
+                  {/* Panel Layout Toggle - only shown when temporal mode is active */}
+                  {temporalMode && selectedUniverseForTemporal && (
+                    <button
+                      onClick={() => {
+                        const layouts: Array<'overlay' | 'sidebar' | 'modal'> = ['overlay', 'sidebar', 'modal'];
+                        const currentIndex = layouts.indexOf(temporalPanelLayout);
+                        const nextLayout = layouts[(currentIndex + 1) % layouts.length];
+                        setTemporalPanelLayout(nextLayout);
+                      }}
+                      className="inline-flex items-center px-3 py-2 border border-blue-200 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors"
+                      title={`Switch to ${temporalPanelLayout === 'overlay' ? 'sidebar' : temporalPanelLayout === 'sidebar' ? 'modal' : 'overlay'} layout`}
+                    >
+                      <LayoutPanelTopIcon className="w-3 h-3 mr-1" />
+                      {temporalPanelLayout}
+                    </button>
+                  )}
+                </div>
+              )}
+              
               {/* AI Chat Toggle */}
               {onToggleChatMode && (
                 <button
@@ -239,6 +346,53 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
           </div>
         )}
 
+        {/* Enhanced Temporal Mode Banner */}
+        {temporalMode && (
+          <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-700 px-6 py-4 rounded-lg shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Clock4Icon className="w-5 h-5 mr-3 animate-pulse" />
+                <div>
+                  <h3 className="text-sm font-medium text-blue-800">
+                    Temporal Analysis Mode Active
+                    {selectedUniverseForTemporal && (
+                      <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                        {selectedUniverseForTemporal.name}
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-sm mt-1 text-blue-600">
+                    {selectedUniverseForTemporal ? (
+                      `Exploring ${selectedUniverseForTemporal.name}'s evolution over time with ${
+                        temporalView === 'timeline' ? 'timeline view' :
+                        temporalView === 'evolution' ? 'evolution charts' :
+                        temporalView === 'analysis' ? 'turnover analysis' : 'detailed insights'
+                      }.`
+                    ) : (
+                      'Select a universe to analyze historical snapshots, turnover patterns, and temporal trends.'
+                    )}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Quick Actions */}
+              {selectedUniverseForTemporal && (
+                <div className="flex items-center space-x-2 ml-4">
+                  <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                    {temporalPanelLayout} view
+                  </span>
+                  <button
+                    onClick={handleTemporalPanelClose}
+                    className="text-blue-500 hover:text-blue-700 transition-colors text-xs font-medium"
+                  >
+                    Close Analysis
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
         {/* AI Chat Mode Banner */}
         {chatMode && (
           <div className="mb-6 bg-primary-50 border border-primary-200 text-primary-700 px-4 py-3 rounded-lg">
@@ -254,26 +408,108 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
           </div>
         )}
 
-        {/* Universe Table */}
-        <div className="card">
-          <div className="card-header">
-            <h2 className="text-lg font-medium text-gray-900">
-              Your Universes ({universes.length})
-            </h2>
+        {/* Main Content Layout with Enhanced Temporal Integration */}
+        <div className={`${
+          temporalMode && selectedUniverseForTemporal && temporalPanelLayout === 'sidebar'
+            ? 'grid grid-cols-1 lg:grid-cols-3 gap-6'
+            : ''
+        }`}>
+          
+          {/* Primary Universe Table */}
+          <div className={`${
+            temporalMode && selectedUniverseForTemporal && temporalPanelLayout === 'sidebar'
+              ? 'lg:col-span-2'
+              : ''
+          }`}>
+            <div className="card">
+              <div className="card-header">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-medium text-gray-900">
+                    {temporalMode && selectedUniverseForTemporal ? (
+                      <span className="flex items-center">
+                        <span>Universe Analysis</span>
+                        <span className="ml-2 text-sm font-normal text-gray-500">
+                          ({universes.length} universe{universes.length !== 1 ? 's' : ''} total)
+                        </span>
+                      </span>
+                    ) : (
+                      `Your Universes (${universes.length})`
+                    )}
+                  </h2>
+                  
+                  {/* Temporal Panel Layout Indicator */}
+                  {temporalMode && selectedUniverseForTemporal && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                      <span>Temporal analysis active</span>
+                      <div className={`w-2 h-2 rounded-full ${
+                        temporalPanelLayout === 'overlay' ? 'bg-blue-400' :
+                        temporalPanelLayout === 'sidebar' ? 'bg-green-400' : 'bg-purple-400'
+                      } animate-pulse`}></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="card-body">
+                <UniverseTable
+                  universes={universes}
+                  loading={loading}
+                  onUniverseSelect={handleUniverseSelect}
+                  onUniverseEdit={handleEditUniverse}
+                  onUniverseDelete={handleDeleteUniverse}
+                  showTemporalMode={enableTemporalMode}
+                  temporalModeEnabled={temporalMode}
+                  onTemporalModeToggle={handleTemporalModeToggle}
+                  onTimelineView={handleTimelineView}
+                  onTemporalAnalysis={handleTemporalAnalysis}
+                />
+              </div>
+            </div>
           </div>
-          <div className="card-body">
-            <UniverseTable
-              universes={universes}
-              loading={loading}
-              onUniverseSelect={handleUniverseSelect}
-              onUniverseEdit={handleEditUniverse}
-              onUniverseDelete={handleDeleteUniverse}
-            />
-          </div>
+
+          {/* Sidebar Temporal Analysis Panel */}
+          {temporalMode && selectedUniverseForTemporal && temporalPanelLayout === 'sidebar' && (
+            <div className="lg:col-span-1">
+              <TemporalAnalysisPanel
+                universe={selectedUniverseForTemporal}
+                view={temporalView}
+                onViewChange={handleTemporalViewChange}
+                onClose={handleTemporalPanelClose}
+                className="sticky top-4"
+              />
+            </div>
+          )}
         </div>
 
+        {/* Overlay Temporal Analysis Panel */}
+        {temporalMode && selectedUniverseForTemporal && temporalPanelLayout === 'overlay' && (
+          <div className="mt-6">
+            <TemporalAnalysisPanel
+              universe={selectedUniverseForTemporal}
+              view={temporalView}
+              onViewChange={handleTemporalViewChange}
+              onClose={handleTemporalPanelClose}
+            />
+          </div>
+        )}
+
+        {/* Modal Temporal Analysis Panel */}
+        {temporalMode && selectedUniverseForTemporal && temporalPanelLayout === 'modal' && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+              <TemporalAnalysisPanel
+                universe={selectedUniverseForTemporal}
+                view={temporalView}
+                onViewChange={handleTemporalViewChange}
+                onClose={handleTemporalPanelClose}
+                className="max-h-[90vh] overflow-y-auto"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Selected Universe Details */}
-        {selectedUniverse && !isEditorOpen && (
+        {selectedUniverse && !isEditorOpen && !temporalMode && (
           <div className="mt-8 card">
             <div className="card-header">
               <h3 className="text-lg font-medium text-gray-900">
@@ -318,6 +554,93 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
                 universe={selectedUniverse}
                 onUniverseUpdate={() => handleUniverseUpdate(selectedUniverse.id)}
               />
+            </div>
+          </div>
+        )}
+        
+        {/* Selected Snapshot Details (Temporal Mode) */}
+        {temporalMode && selectedSnapshot && (
+          <div className="mt-8 card">
+            <div className="card-header">
+              <h3 className="text-lg font-medium text-gray-900">
+                Snapshot Details - {new Date(selectedSnapshot.snapshot_date).toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Universe: {selectedUniverse?.name}
+              </p>
+            </div>
+            <div className="card-body">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-blue-900">
+                    {selectedSnapshot.assets.length}
+                  </div>
+                  <div className="text-sm text-blue-700">Total Assets</div>
+                </div>
+                
+                {selectedSnapshot.turnover_rate && (
+                  <div className="bg-red-50 rounded-lg p-4">
+                    <div className="text-2xl font-bold text-red-900">
+                      {(selectedSnapshot.turnover_rate * 100).toFixed(1)}%
+                    </div>
+                    <div className="text-sm text-red-700">Turnover Rate</div>
+                  </div>
+                )}
+                
+                {selectedSnapshot.assets_added && selectedSnapshot.assets_added.length > 0 && (
+                  <div className="bg-green-50 rounded-lg p-4">
+                    <div className="text-2xl font-bold text-green-900">
+                      {selectedSnapshot.assets_added.length}
+                    </div>
+                    <div className="text-sm text-green-700">Assets Added</div>
+                  </div>
+                )}
+                
+                {selectedSnapshot.assets_removed && selectedSnapshot.assets_removed.length > 0 && (
+                  <div className="bg-orange-50 rounded-lg p-4">
+                    <div className="text-2xl font-bold text-orange-900">
+                      {selectedSnapshot.assets_removed.length}
+                    </div>
+                    <div className="text-sm text-orange-700">Assets Removed</div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Asset changes details */}
+              {((selectedSnapshot.assets_added && selectedSnapshot.assets_added.length > 0) || 
+                (selectedSnapshot.assets_removed && selectedSnapshot.assets_removed.length > 0)) && (
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {selectedSnapshot.assets_added && selectedSnapshot.assets_added.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-green-700 mb-3">Assets Added</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedSnapshot.assets_added.map((asset, index) => (
+                          <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {asset}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedSnapshot.assets_removed && selectedSnapshot.assets_removed.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-red-700 mb-3">Assets Removed</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedSnapshot.assets_removed.map((asset, index) => (
+                          <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            {asset}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

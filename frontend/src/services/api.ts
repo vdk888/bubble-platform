@@ -9,6 +9,17 @@ import {
   AuthResponse,
   ProgressUpdate 
 } from '../types';
+import {
+  UniverseTimelineResponse,
+  UniverseSnapshotsResponse,
+  CompositionAtDateResponse,
+  CreateSnapshotRequest,
+  CreateSnapshotResponse,
+  BackfillHistoryRequest,
+  BackfillHistoryResponse,
+  TimelineFilter,
+  DateRange
+} from '../types/temporal';
 
 // API Configuration - use proxy in development, direct URL in production
 const API_BASE_URL = process.env.NODE_ENV === 'development' ? '' : (process.env.REACT_APP_API_URL || 'http://localhost:8000');
@@ -314,6 +325,317 @@ export const healthAPI = {
     const response = await apiClient.get('/health/workers');
     return response.data;
   },
+};
+
+// Temporal Universe API
+export const temporalUniverseAPI = {
+  /**
+   * Get universe evolution timeline
+   * GET /{universe_id}/timeline
+   */
+  getTimeline: async (
+    universeId: string,
+    filters: TimelineFilter
+  ): Promise<UniverseTimelineResponse> => {
+    try {
+      console.log('📤 Temporal API: Fetching universe timeline', { universeId, filters });
+      
+      const params: Record<string, any> = {
+        start_date: filters.date_range.start_date,
+        end_date: filters.date_range.end_date,
+        frequency: filters.frequency
+      };
+      
+      if (filters.show_empty_periods !== undefined) {
+        params.show_empty_periods = filters.show_empty_periods;
+      }
+      
+      if (filters.include_turnover_analysis !== undefined) {
+        params.include_turnover_analysis = filters.include_turnover_analysis;
+      }
+      
+      const response = await apiClient.get(`/api/v1/universes/${universeId}/timeline`, {
+        params
+      });
+      
+      console.log('📥 Temporal API: Timeline response', {
+        success: response.data?.success,
+        snapshotCount: response.data?.data?.length || 0,
+        dateRange: `${filters.date_range.start_date} to ${filters.date_range.end_date}`,
+        frequency: filters.frequency
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Temporal API: Get timeline failed', error);
+      // Transform axios error to consistent format
+      if (error.response?.data) {
+        return {
+          success: false,
+          data: [],
+          message: error.response.data.message || error.response.data.detail || 'Failed to fetch universe timeline',
+          metadata: {
+            universe_id: universeId,
+            period_start: filters.date_range.start_date,
+            period_end: filters.date_range.end_date,
+            frequency: filters.frequency,
+            total_snapshots: 0
+          }
+        };
+      }
+      return {
+        success: false,
+        data: [],
+        message: 'Network error while fetching timeline',
+        metadata: {
+          universe_id: universeId,
+          period_start: filters.date_range.start_date,
+          period_end: filters.date_range.end_date,
+          frequency: filters.frequency,
+          total_snapshots: 0
+        }
+      };
+    }
+  },
+
+  /**
+   * Get all historical snapshots for a universe
+   * GET /{universe_id}/snapshots
+   */
+  getSnapshots: async (
+    universeId: string,
+    page?: number,
+    perPage?: number
+  ): Promise<UniverseSnapshotsResponse> => {
+    try {
+      console.log('📤 Temporal API: Fetching universe snapshots', { universeId, page, perPage });
+      
+      const params: Record<string, any> = {};
+      if (page !== undefined) params.page = page;
+      if (perPage !== undefined) params.per_page = perPage;
+      
+      const response = await apiClient.get(`/api/v1/universes/${universeId}/snapshots`, {
+        params
+      });
+      
+      console.log('📥 Temporal API: Snapshots response', {
+        success: response.data?.success,
+        snapshotCount: response.data?.data?.length || 0,
+        totalSnapshots: response.data?.metadata?.total_snapshots || 0
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Temporal API: Get snapshots failed', error);
+      if (error.response?.data) {
+        return {
+          success: false,
+          data: [],
+          message: error.response.data.message || error.response.data.detail || 'Failed to fetch universe snapshots',
+          metadata: {
+            universe_id: universeId,
+            total_snapshots: 0,
+            date_range: {
+              earliest_snapshot: '',
+              latest_snapshot: ''
+            }
+          }
+        };
+      }
+      return {
+        success: false,
+        data: [],
+        message: 'Network error while fetching snapshots',
+        metadata: {
+          universe_id: universeId,
+          total_snapshots: 0,
+          date_range: {
+            earliest_snapshot: '',
+            latest_snapshot: ''
+          }
+        }
+      };
+    }
+  },
+
+  /**
+   * Create a new universe snapshot
+   * POST /{universe_id}/snapshots
+   */
+  createSnapshot: async (
+    universeId: string,
+    request: CreateSnapshotRequest = {}
+  ): Promise<CreateSnapshotResponse> => {
+    try {
+      console.log('📤 Temporal API: Creating universe snapshot', { universeId, request });
+      
+      const response = await apiClient.post(`/api/v1/universes/${universeId}/snapshots`, request);
+      
+      console.log('📥 Temporal API: Create snapshot response', {
+        success: response.data?.success,
+        snapshotId: response.data?.data?.id,
+        snapshotDate: response.data?.data?.snapshot_date,
+        assetCount: response.data?.data?.assets?.length || 0,
+        turnoverRate: response.data?.data?.turnover_rate
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Temporal API: Create snapshot failed', error);
+      if (error.response?.data) {
+        return {
+          success: false,
+          data: {} as any, // Will be properly typed as UniverseSnapshot
+          message: error.response.data.message || error.response.data.detail || 'Failed to create universe snapshot',
+          metadata: {
+            universe_id: universeId
+          }
+        };
+      }
+      return {
+        success: false,
+        data: {} as any,
+        message: 'Network error while creating snapshot',
+        metadata: {
+          universe_id: universeId
+        }
+      };
+    }
+  },
+
+  /**
+   * Get universe composition at specific date
+   * GET /{universe_id}/composition/{date}
+   */
+  getCompositionAtDate: async (
+    universeId: string,
+    date: string
+  ): Promise<CompositionAtDateResponse> => {
+    try {
+      console.log('📤 Temporal API: Fetching composition at date', { universeId, date });
+      
+      const response = await apiClient.get(`/api/v1/universes/${universeId}/composition/${date}`);
+      
+      console.log('📥 Temporal API: Composition at date response', {
+        success: response.data?.success,
+        queryDate: date,
+        snapshotDate: response.data?.data?.snapshot_date,
+        assetCount: response.data?.data?.assets?.length || 0,
+        isExactMatch: response.data?.data?.context?.is_exact_match
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Temporal API: Get composition at date failed', error);
+      if (error.response?.data) {
+        return {
+          success: false,
+          data: {
+            snapshot_date: date,
+            universe_id: universeId,
+            assets: [],
+            context: {
+              is_exact_match: false
+            }
+          },
+          message: error.response.data.message || error.response.data.detail || 'Failed to fetch composition at date',
+          metadata: {
+            query_date: date,
+            universe_name: '',
+            asset_count: 0
+          }
+        };
+      }
+      return {
+        success: false,
+        data: {
+          snapshot_date: date,
+          universe_id: universeId,
+          assets: [],
+          context: {
+            is_exact_match: false
+          }
+        },
+        message: 'Network error while fetching composition',
+        metadata: {
+          query_date: date,
+          universe_name: '',
+          asset_count: 0
+        }
+      };
+    }
+  },
+
+  /**
+   * Generate historical snapshots (backfill)
+   * POST /{universe_id}/backfill
+   */
+  backfillHistory: async (
+    universeId: string,
+    request: BackfillHistoryRequest
+  ): Promise<BackfillHistoryResponse> => {
+    try {
+      console.log('📤 Temporal API: Starting backfill history', { universeId, request });
+      
+      const response = await apiClient.post(`/api/v1/universes/${universeId}/backfill`, request);
+      
+      console.log('📥 Temporal API: Backfill history response', {
+        success: response.data?.success,
+        snapshotsCreated: response.data?.data?.snapshots_created || 0,
+        snapshotsUpdated: response.data?.data?.snapshots_updated || 0,
+        snapshotsSkipped: response.data?.data?.snapshots_skipped || 0,
+        processingTime: response.data?.metadata?.processing_time_seconds || 0
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Temporal API: Backfill history failed', error);
+      if (error.response?.data) {
+        return {
+          success: false,
+          data: {
+            universe_id: universeId,
+            snapshots_created: 0,
+            snapshots_updated: 0,
+            snapshots_skipped: 0,
+            date_range: {
+              start_date: request.start_date,
+              end_date: request.end_date
+            },
+            frequency: request.frequency
+          },
+          message: error.response.data.message || error.response.data.detail || 'Failed to backfill universe history',
+          metadata: {
+            processing_time_seconds: 0,
+            total_snapshots_processed: 0,
+            error_count: 1,
+            warnings: []
+          }
+        };
+      }
+      return {
+        success: false,
+        data: {
+          universe_id: universeId,
+          snapshots_created: 0,
+          snapshots_updated: 0,
+          snapshots_skipped: 0,
+          date_range: {
+            start_date: request.start_date,
+            end_date: request.end_date
+          },
+          frequency: request.frequency
+        },
+        message: 'Network error while backfilling history',
+        metadata: {
+          processing_time_seconds: 0,
+          total_snapshots_processed: 0,
+          error_count: 1,
+          warnings: []
+        }
+      };
+    }
+  }
 };
 
 export default apiClient;
