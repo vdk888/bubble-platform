@@ -11,7 +11,7 @@ import re
 
 from ...core.database import get_db
 from ...core.security import auth_service, TokenResponse, PasswordStrength
-from ...core.middleware import rate_limit_auth, limiter
+# Rate limiting now handled by enterprise middleware
 from ...models.user import User, UserRole, SubscriptionTier
 
 # Set up logging for audit trail
@@ -120,7 +120,6 @@ async def get_current_user(
 
 # Authentication endpoints
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("10/minute")
 async def register_user(
     user_data: UserRegistration,
     request: Request,
@@ -201,7 +200,6 @@ async def register_user(
 
 
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit("10/minute")
 async def login_user(
     login_data: UserLogin,
     request: Request,
@@ -274,7 +272,6 @@ async def login_user(
 
 
 @router.post("/refresh", response_model=TokenResponse)
-@limiter.limit("10/minute")
 async def refresh_token(
     refresh_request: RefreshTokenRequest,
     request: Request,

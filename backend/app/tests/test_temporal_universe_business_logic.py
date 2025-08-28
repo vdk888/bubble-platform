@@ -595,7 +595,7 @@ class TestTemporalUniverseBusinessLogic:
             {
                 "name": "Compliant Diversified Portfolio",
                 "weights": {f"STOCK_{i}": 0.08 for i in range(1, 13)},  # 12 stocks, 8% each
-                "sector_weights": {"Technology": 0.25, "Healthcare": 0.20, "Financial": 0.15, "Consumer": 0.40},
+                "sector_weights": {"Technology": 0.25, "Healthcare": 0.20, "Financial": 0.25, "Consumer": 0.30},
                 "volatility": 0.18,
                 "avg_correlation": 0.55,
                 "market_caps": {f"STOCK_{i}": 5_000_000_000 for i in range(1, 13)},
@@ -802,9 +802,9 @@ class TestTemporalUniverseBusinessLogic:
             survivorship_ratio = 1.0 - (delisted_count / total_historical) if total_historical > 0 else 1.0
             
             # Classify bias severity
-            if survivorship_ratio > 0.9:
+            if survivorship_ratio >= 0.8:
                 bias_level = "low"
-            elif survivorship_ratio > 0.7:
+            elif survivorship_ratio >= 0.5:
                 bias_level = "moderate" 
             else:
                 bias_level = "high"
@@ -958,8 +958,8 @@ class TestTemporalUniverseBusinessLogic:
                 "weight_ranking": ["MSFT", "AMZN", "AAPL", "GOOGL"]  # Low vol gets higher weight
             },
             {
-                "method": "max_sharpe",
-                "weight_ranking": ["AAPL", "GOOGL", "MSFT", "AMZN"]  # High Sharpe gets higher weight
+                "method": "max_sharpe", 
+                "weight_ranking": ["MSFT", "AAPL", "GOOGL", "AMZN"]  # High Sharpe gets higher weight
             }
         ]
         

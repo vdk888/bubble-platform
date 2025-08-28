@@ -839,7 +839,7 @@ class TestTemporalUniversePerformance:
                 print(f"  Cache improvement: {cache_improvement:.1%}")
                 print("  Caching appears effective")
             else:
-                print("  ℹ️ No significant cache improvement detected")
+                print("  INFO: No significant cache improvement detected")
             
             # Verify response consistency
             assert response_1.json() == response_2.json(), \

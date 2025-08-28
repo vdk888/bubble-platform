@@ -2,14 +2,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
+# Rate limiting now handled by enterprise middleware
 
 from .core.config import settings
 from .models.base import Base
 from .core.database import engine
-from .core.middleware import SecurityHeadersMiddleware, InputSanitizationMiddleware, AuditLoggingMiddleware, PostgreSQLRLSMiddleware, limiter
+# Enterprise middleware imports (conditionally enabled)
+from .core.middleware.rate_limiting import RateLimitMiddleware, TESTING_CONFIG
 from .api.v1 import health, features, auth, rls_admin, universes, assets
 
 @asynccontextmanager
@@ -86,11 +85,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add security middleware (order matters - RLS first, then others)
-app.add_middleware(PostgreSQLRLSMiddleware)
-app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(AuditLoggingMiddleware)
-app.add_middleware(InputSanitizationMiddleware)
+# Add security middleware - Enterprise security features
+# Always add rate limiting middleware but enable/disable it dynamically
+app.add_middleware(
+    RateLimitMiddleware, 
+    rate_limiter=None,  # Use default Redis rate limiter
+    enable_rate_limiting=False,  # Will be enabled dynamically based on environment
+    exempt_paths=["/health", "/health/ready", "/docs", "/openapi.json", "/redoc"]
+)
 
 # CORS middleware
 app.add_middleware(
@@ -101,9 +103,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add rate limiting
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# Rate limiting now handled by RateLimitMiddleware
 
 # Include routers
 app.include_router(health.router, prefix="/health", tags=["Health Checks"])

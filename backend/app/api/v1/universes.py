@@ -723,36 +723,57 @@ async def get_universe_timeline(
     timeline_data = result.data
     snapshots = timeline_data.get("snapshots", [])
     
-    # Convert to response format
+    # Convert to response format with proper DateTime serialization
     snapshot_responses = []
     for snapshot in snapshots:
         # Handle both dict and object formats from service
         if isinstance(snapshot, dict):
+            # Convert DateTime objects to ISO strings if needed
+            snapshot_date = snapshot["snapshot_date"]
+            if hasattr(snapshot_date, 'isoformat'):
+                snapshot_date = snapshot_date.isoformat()
+            elif hasattr(snapshot_date, 'date'):
+                snapshot_date = snapshot_date.date().isoformat()
+            
+            created_at = snapshot["created_at"]
+            if hasattr(created_at, 'isoformat'):
+                created_at = created_at.isoformat()
+            
             snapshot_responses.append(UniverseSnapshotResponse(
                 id=snapshot["id"],
                 universe_id=snapshot["universe_id"],
-                snapshot_date=snapshot["snapshot_date"],
+                snapshot_date=snapshot_date,
                 assets=snapshot["assets"],
                 turnover_rate=snapshot.get("turnover_rate"),
                 assets_added=snapshot.get("assets_added"),
                 assets_removed=snapshot.get("assets_removed"),
                 screening_criteria=snapshot.get("screening_criteria"),
                 performance_metrics=snapshot.get("performance_metrics"),
-                created_at=snapshot["created_at"]
+                created_at=created_at
             ))
         else:
-            # Object format
+            # Object format - ensure all DateTime objects are converted to strings
+            snapshot_date = snapshot.snapshot_date
+            if hasattr(snapshot_date, 'isoformat'):
+                snapshot_date = snapshot_date.isoformat()
+            elif hasattr(snapshot_date, 'date'):
+                snapshot_date = snapshot_date.date().isoformat()
+            
+            created_at = snapshot.created_at
+            if hasattr(created_at, 'isoformat'):
+                created_at = created_at.isoformat()
+            
             snapshot_responses.append(UniverseSnapshotResponse(
                 id=snapshot.id,
                 universe_id=snapshot.universe_id,
-                snapshot_date=snapshot.snapshot_date.isoformat(),
+                snapshot_date=snapshot_date,
                 assets=snapshot.assets,
                 turnover_rate=float(snapshot.turnover_rate) if snapshot.turnover_rate else None,
                 assets_added=snapshot.assets_added,
                 assets_removed=snapshot.assets_removed,
                 screening_criteria=snapshot.screening_criteria,
                 performance_metrics=snapshot.performance_metrics,
-                created_at=snapshot.created_at.isoformat()
+                created_at=created_at
             ))
     
     # AI-friendly next actions
@@ -843,34 +864,56 @@ async def get_universe_snapshots(
     total_snapshots = len(all_snapshots)
     paginated_snapshots = all_snapshots[offset:offset + limit]
     
-    # Convert to response format
+    # Convert to response format with proper DateTime serialization
     snapshot_responses = []
     for snapshot in paginated_snapshots:
         if isinstance(snapshot, dict):
+            # Convert DateTime objects to ISO strings if needed
+            snapshot_date = snapshot["snapshot_date"]
+            if hasattr(snapshot_date, 'isoformat'):
+                snapshot_date = snapshot_date.isoformat()
+            elif hasattr(snapshot_date, 'date'):
+                snapshot_date = snapshot_date.date().isoformat()
+            
+            created_at = snapshot["created_at"]
+            if hasattr(created_at, 'isoformat'):
+                created_at = created_at.isoformat()
+            
             snapshot_responses.append(UniverseSnapshotResponse(
                 id=snapshot["id"],
                 universe_id=snapshot["universe_id"],
-                snapshot_date=snapshot["snapshot_date"],
+                snapshot_date=snapshot_date,
                 assets=snapshot["assets"],
                 turnover_rate=snapshot.get("turnover_rate"),
                 assets_added=snapshot.get("assets_added"),
                 assets_removed=snapshot.get("assets_removed"),
                 screening_criteria=snapshot.get("screening_criteria"),
                 performance_metrics=snapshot.get("performance_metrics"),
-                created_at=snapshot["created_at"]
+                created_at=created_at
             ))
         else:
+            # Object format - ensure all DateTime objects are converted to strings
+            snapshot_date = snapshot.snapshot_date
+            if hasattr(snapshot_date, 'isoformat'):
+                snapshot_date = snapshot_date.isoformat()
+            elif hasattr(snapshot_date, 'date'):
+                snapshot_date = snapshot_date.date().isoformat()
+            
+            created_at = snapshot.created_at
+            if hasattr(created_at, 'isoformat'):
+                created_at = created_at.isoformat()
+                
             snapshot_responses.append(UniverseSnapshotResponse(
                 id=snapshot.id,
                 universe_id=snapshot.universe_id,
-                snapshot_date=snapshot.snapshot_date.isoformat(),
+                snapshot_date=snapshot_date,
                 assets=snapshot.assets,
                 turnover_rate=float(snapshot.turnover_rate) if snapshot.turnover_rate else None,
                 assets_added=snapshot.assets_added,
                 assets_removed=snapshot.assets_removed,
                 screening_criteria=snapshot.screening_criteria,
                 performance_metrics=snapshot.performance_metrics,
-                created_at=snapshot.created_at.isoformat()
+                created_at=created_at
             ))
     
     # AI-friendly next actions
@@ -975,32 +1018,54 @@ async def create_universe_snapshot(
     
     snapshot = result.data
     
-    # Convert to response format
+    # Convert to response format with proper DateTime serialization
     if isinstance(snapshot, dict):
+        # Convert DateTime objects to ISO strings if needed
+        snapshot_date = snapshot["snapshot_date"]
+        if hasattr(snapshot_date, 'isoformat'):
+            snapshot_date = snapshot_date.isoformat()
+        elif hasattr(snapshot_date, 'date'):
+            snapshot_date = snapshot_date.date().isoformat()
+        
+        created_at = snapshot["created_at"]
+        if hasattr(created_at, 'isoformat'):
+            created_at = created_at.isoformat()
+        
         snapshot_response = UniverseSnapshotResponse(
             id=snapshot["id"],
             universe_id=snapshot["universe_id"],
-            snapshot_date=snapshot["snapshot_date"],
+            snapshot_date=snapshot_date,
             assets=snapshot["assets"],
             turnover_rate=snapshot.get("turnover_rate"),
             assets_added=snapshot.get("assets_added"),
             assets_removed=snapshot.get("assets_removed"),
             screening_criteria=snapshot.get("screening_criteria"),
             performance_metrics=snapshot.get("performance_metrics"),
-            created_at=snapshot["created_at"]
+            created_at=created_at
         )
     else:
+        # Object format - ensure all DateTime objects are converted to strings
+        snapshot_date = snapshot.snapshot_date
+        if hasattr(snapshot_date, 'isoformat'):
+            snapshot_date = snapshot_date.isoformat()
+        elif hasattr(snapshot_date, 'date'):
+            snapshot_date = snapshot_date.date().isoformat()
+        
+        created_at = snapshot.created_at
+        if hasattr(created_at, 'isoformat'):
+            created_at = created_at.isoformat()
+        
         snapshot_response = UniverseSnapshotResponse(
             id=snapshot.id,
             universe_id=snapshot.universe_id,
-            snapshot_date=snapshot.snapshot_date.isoformat(),
+            snapshot_date=snapshot_date,
             assets=snapshot.assets,
             turnover_rate=float(snapshot.turnover_rate) if snapshot.turnover_rate else None,
             assets_added=snapshot.assets_added,
             assets_removed=snapshot.assets_removed,
             screening_criteria=snapshot.screening_criteria,
             performance_metrics=snapshot.performance_metrics,
-            created_at=snapshot.created_at.isoformat()
+            created_at=created_at
         )
     
     # AI-friendly next actions
@@ -1078,7 +1143,8 @@ async def get_composition_at_date(
     # Get point-in-time composition using temporal service
     result = await temporal_service.get_point_in_time_composition(
         universe_id=universe_id,
-        target_date=composition_date
+        target_date=composition_date,
+        user_id=current_user.id
     )
     
     if not result.success:
@@ -1215,34 +1281,56 @@ async def backfill_universe_history(
     backfill_result = result.data
     created_snapshots = backfill_result.get("created_snapshots", [])
     
-    # Convert snapshots to response format
+    # Convert snapshots to response format with proper DateTime serialization
     snapshot_responses = []
     for snapshot in created_snapshots:
         if isinstance(snapshot, dict):
+            # Convert DateTime objects to ISO strings if needed
+            snapshot_date = snapshot["snapshot_date"]
+            if hasattr(snapshot_date, 'isoformat'):
+                snapshot_date = snapshot_date.isoformat()
+            elif hasattr(snapshot_date, 'date'):
+                snapshot_date = snapshot_date.date().isoformat()
+            
+            created_at = snapshot["created_at"]
+            if hasattr(created_at, 'isoformat'):
+                created_at = created_at.isoformat()
+            
             snapshot_responses.append(UniverseSnapshotResponse(
                 id=snapshot["id"],
                 universe_id=snapshot["universe_id"],
-                snapshot_date=snapshot["snapshot_date"],
+                snapshot_date=snapshot_date,
                 assets=snapshot["assets"],
                 turnover_rate=snapshot.get("turnover_rate"),
                 assets_added=snapshot.get("assets_added"),
                 assets_removed=snapshot.get("assets_removed"),
                 screening_criteria=snapshot.get("screening_criteria"),
                 performance_metrics=snapshot.get("performance_metrics"),
-                created_at=snapshot["created_at"]
+                created_at=created_at
             ))
         else:
+            # Object format - ensure all DateTime objects are converted to strings
+            snapshot_date = snapshot.snapshot_date
+            if hasattr(snapshot_date, 'isoformat'):
+                snapshot_date = snapshot_date.isoformat()
+            elif hasattr(snapshot_date, 'date'):
+                snapshot_date = snapshot_date.date().isoformat()
+            
+            created_at = snapshot.created_at
+            if hasattr(created_at, 'isoformat'):
+                created_at = created_at.isoformat()
+                
             snapshot_responses.append(UniverseSnapshotResponse(
                 id=snapshot.id,
                 universe_id=snapshot.universe_id,
-                snapshot_date=snapshot.snapshot_date.isoformat(),
+                snapshot_date=snapshot_date,
                 assets=snapshot.assets,
                 turnover_rate=float(snapshot.turnover_rate) if snapshot.turnover_rate else None,
                 assets_added=snapshot.assets_added,
                 assets_removed=snapshot.assets_removed,
                 screening_criteria=snapshot.screening_criteria,
                 performance_metrics=snapshot.performance_metrics,
-                created_at=snapshot.created_at.isoformat()
+                created_at=created_at
             ))
     
     # AI-friendly next actions

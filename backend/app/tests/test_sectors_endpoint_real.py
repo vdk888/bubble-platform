@@ -583,7 +583,7 @@ def test_sectors_endpoint_docker_integration():
         # Note: This would require setting up a test user in the Docker environment
         # For now, we just verify the endpoint exists and requires auth
         
-        print("✅ Docker integration test passed - endpoint exists and requires auth")
+        print("PASS: Docker integration test passed - endpoint exists and requires auth")
         
     except requests.exceptions.RequestException as e:
         pytest.skip(f"Could not connect to Docker backend service: {e}")

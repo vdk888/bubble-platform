@@ -592,6 +592,6 @@ class TestSectorsEndpointIntegration:
         assert "next_actions" in data
         assert "metadata" in data
         
-        print(f"✅ Sectors endpoint working in Docker environment")
-        print(f"📊 Returned {len(data['data'])} sectors")
+        print(f"PASS: Sectors endpoint working in Docker environment")
+        print(f"DATA: Returned {len(data['data'])} sectors")
         print(f"🔧 Data source: {data['metadata'].get('data_source', 'unknown')}")

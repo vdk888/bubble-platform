@@ -36,6 +36,13 @@ def pytest_configure(config):
         "api_endpoints: API endpoint tests",
         "temporal: Temporal universe system tests",
         "performance: Performance and scalability tests",
+        "sprint2: Sprint 2 specific tests",
+        "asset_validation: Asset validation tests",
+        "ai_friendly_apis: AI-friendly API response format tests",
+        "mixed_validation_strategy: Mixed validation strategy tests",
+        "normalized_asset_model: Normalized asset model tests",
+        "real_data: Tests using real data",
+        "universe_management: Universe management tests",
     ]
     
     for marker in markers:
@@ -89,9 +96,8 @@ def client():
     original_env = os.environ.get("ENVIRONMENT")
     os.environ["ENVIRONMENT"] = "testing"
     
-    # Reset rate limiter state for each test
-    from app.core.middleware import limiter
-    limiter.reset()
+    # Rate limiter now handled by enterprise middleware
+    # No need to reset state as Redis handles expiry automatically
     
     # Create tables in our test database
     Base.metadata.create_all(bind=engine)
@@ -202,6 +208,24 @@ def authenticated_test_user(db_session: Session):
 @pytest.fixture
 def interface_first_client(client: TestClient, authenticated_test_user: User):
     """Create authenticated client using Interface First Design dependency override."""
+    # Override authentication dependency
+    from app.api.v1.auth import get_current_user
+    
+    def override_get_current_user():
+        return authenticated_test_user
+    
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    
+    yield client, authenticated_test_user
+    
+    # Clean up dependency override (Security best practice)
+    if get_current_user in app.dependency_overrides:
+        del app.dependency_overrides[get_current_user]
+
+
+@pytest.fixture
+def authenticated_client(client: TestClient, authenticated_test_user: User):
+    """Create authenticated client for temporal and other tests that need authentication."""
     # Override authentication dependency
     from app.api.v1.auth import get_current_user
     

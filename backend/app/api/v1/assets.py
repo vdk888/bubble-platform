@@ -3,13 +3,12 @@ Asset Search and Validation API Endpoints.
 Following Phase 2 Step 4 specifications with AI-friendly response format.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+# Note: Rate limiting now handled by middleware instead of slowapi decorators
 
 from ...core.database import get_db
 from ..v1.auth import get_current_user
@@ -17,8 +16,7 @@ from ...models.user import User
 from ...services.asset_validation_service import AssetValidationService
 from ...services.interfaces.base import ServiceResult
 
-# Rate limiting configuration for validation endpoints
-limiter = Limiter(key_func=get_remote_address)
+# Rate limiting now handled by RateLimitMiddleware
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -112,9 +110,8 @@ def get_asset_validation_service() -> AssetValidationService:
         raise
 
 @router.post("/validate", response_model=AIValidationResponse, summary="Bulk asset validation")
-@limiter.limit("5/minute")  # Rate limiting for validation endpoint
 async def validate_assets(
-    request: Request,  # Required for rate limiting
+    request: Request,  # Available for future use
     validation_request: AssetValidationRequest,
     current_user: User = Depends(get_current_user),
     asset_service: AssetValidationService = Depends(get_asset_validation_service)
@@ -430,7 +427,7 @@ async def get_available_sectors(
                     "total_sectors": len(fallback_sectors),
                     "data_source": "fallback_list",
                     "database_empty": True,
-                    "last_updated": datetime.utcnow().isoformat()
+                    "last_updated": datetime.now(timezone.utc).isoformat()
                 }
             )
         
@@ -449,7 +446,7 @@ async def get_available_sectors(
                 "total_sectors": len(sectors_list),
                 "data_source": "asset_database",
                 "validated_assets_only": True,
-                "last_updated": datetime.utcnow().isoformat()
+                "last_updated": datetime.now(timezone.utc).isoformat()
             }
         )
         
@@ -485,7 +482,7 @@ async def get_available_sectors(
                 "data_source": "fallback_list",
                 "error": str(e),
                 "database_error": True,
-                "last_updated": datetime.utcnow().isoformat()
+                "last_updated": datetime.now(timezone.utc).isoformat()
             }
         )
 

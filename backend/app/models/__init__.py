@@ -8,6 +8,7 @@ from .strategy import Strategy, StrategyStatus
 from .portfolio import Portfolio, PortfolioAllocation
 from .execution import Order, Execution, OrderStatus, OrderType
 from .chat import Conversation, ChatMessage
+from .security_audit import SecurityAuditLog, SecurityAlertModel  # Sprint 2.5 Part D: Security audit system
 
 __all__ = [
     "BaseModel",
@@ -17,5 +18,6 @@ __all__ = [
     "Strategy", "StrategyStatus",
     "Portfolio", "PortfolioAllocation",
     "Order", "Execution", "OrderStatus", "OrderType",
-    "Conversation", "ChatMessage"
+    "Conversation", "ChatMessage",
+    "SecurityAuditLog", "SecurityAlertModel"  # Sprint 2.5 Part D: Security audit system
 ]
