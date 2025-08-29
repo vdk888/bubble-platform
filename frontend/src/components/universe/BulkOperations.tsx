@@ -281,17 +281,16 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
   };
 
   const downloadTemplate = () => {
-    // Historical universe template with temporal snapshots
-    const templateContent = `Universe Name,Snapshot Date,Symbol 1,Symbol 2,Symbol 3,Symbol 4,Symbol 5,Change Reason
-Tech Leaders Portfolio,2025-03-15,AAPL,MSFT,GOOGL,AMZN,TSLA,Initial composition
-Tech Leaders Portfolio,2025-04-15,AAPL,MSFT,GOOGL,AMZN,TSLA,No changes - stable portfolio
-Tech Leaders Portfolio,2025-05-15,AAPL,MSFT,GOOGL,META,NVDA,Added META and NVDA for AI exposure
-Tech Leaders Portfolio,2025-06-15,AAPL,MSFT,GOOGL,META,NVDA,No changes - monitoring performance
-Tech Leaders Portfolio,2025-07-15,AAPL,MSFT,GOOGL,META,NFLX,Replaced NVDA with NFLX for streaming
-Dividend Aristocrats,2025-03-01,JNJ,PG,KO,MMM,CAT,Conservative dividend portfolio
-Dividend Aristocrats,2025-04-01,JNJ,PG,KO,MMM,HD,Replaced CAT with HD - home improvement growth
-Dividend Aristocrats,2025-05-01,JNJ,PG,KO,MMM,HD,No changes - dividend stability focus
-Example Static Universe,,,AAPL,MSFT,GOOGL,,,Static universe without temporal data
+    // Comprehensive temporal universe template with 2 universes, 3 snapshots each
+    // This template demonstrates proper temporal data structure for bubble platform
+    const templateContent = `Universe Name,Snapshot Date,Symbol 1,Symbol 2,Symbol 3,Symbol 4,Symbol 5,Symbol 6,Change Reason
+Tech Growth Portfolio,2025-01-15,AAPL,MSFT,GOOGL,AMZN,TSLA,NVDA,Initial tech growth composition
+Tech Growth Portfolio,2025-02-15,AAPL,MSFT,GOOGL,AMZN,META,NVDA,Replaced TSLA with META for social/AI exposure
+Tech Growth Portfolio,2025-03-15,AAPL,MSFT,GOOGL,AMZN,META,NFLX,Replaced NVDA with NFLX for streaming diversification
+Dividend Champions,2025-01-01,JNJ,PG,KO,XOM,CVX,T,Conservative dividend-focused portfolio
+Dividend Champions,2025-02-01,JNJ,PG,KO,XOM,MMM,HD,Replaced CVX/T with MMM/HD for sector balance
+Dividend Champions,2025-03-01,JNJ,PG,KO,BAC,MMM,HD,Replaced XOM with BAC for financial sector exposure
+Example Static Portfolio,,,AAPL,MSFT,GOOGL,,,Static portfolio without temporal snapshots (optional)
 `;
     
     const blob = new Blob([templateContent], { type: 'text/csv;charset=utf-8;' });
@@ -299,7 +298,7 @@ Example Static Universe,,,AAPL,MSFT,GOOGL,,,Static universe without temporal dat
     const url = URL.createObjectURL(blob);
     
     link.setAttribute('href', url);
-    link.setAttribute('download', 'historical_universe_template.csv');
+    link.setAttribute('download', 'bubble_platform_temporal_universe_template.csv');
     link.style.visibility = 'hidden';
     
     document.body.appendChild(link);
@@ -375,13 +374,14 @@ Example Static Universe,,,AAPL,MSFT,GOOGL,,,Static universe without temporal dat
                 <div>
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Import from CSV</h4>
                   <p className="text-sm text-gray-600 mb-4">
-                    Upload a CSV file to create universes. Supports both formats:<br/>
-                    <strong>Static:</strong> Universe Name, Symbol1, Symbol2, Symbol3...<br/>
-                    <strong>Temporal:</strong> Universe Name, Snapshot Date, Symbol1, Symbol2..., Change Reason
+                    Upload a CSV file to create universes with temporal snapshots. The template includes:<br/>
+                    <strong>2 Universe Examples:</strong> Tech Growth Portfolio & Dividend Champions<br/>
+                    <strong>3 Snapshots Each:</strong> Shows portfolio evolution over time<br/>
+                    <strong>Format:</strong> Universe Name, Snapshot Date, Symbol 1-6, Change Reason
                   </p>
                   <div className="text-xs text-gray-500 mb-4 p-3 bg-blue-50 rounded-lg">
-                    💡 <strong>Temporal Format:</strong> Create historical universe snapshots to track portfolio evolution over time. 
-                    Each row represents the universe composition at a specific date, enabling temporal analysis and turnover tracking.
+                    💡 <strong>Template Benefits:</strong> Download the template to see how temporal universes work with multiple snapshots 
+                    per portfolio, enabling turnover analysis, performance tracking, and historical composition views.
                   </div>
                   
                   <div className="flex space-x-3">
