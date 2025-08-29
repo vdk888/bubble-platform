@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { XIcon, UploadIcon, DownloadIcon, CheckCircleIcon, XCircleIcon, ClockIcon } from 'lucide-react';
 import { Universe, BulkValidationResult } from '../../types';
-import { universeAPI, assetAPI } from '../../services/api';
+import { universeAPI, assetAPI, temporalUniverseAPI } from '../../services/api';
 
 interface BulkOperationsProps {
   universes: Universe[];
@@ -167,9 +167,27 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
                     : [];
                   allFailedSymbols.push(...failed);
                   
-                  // TODO: Create historical snapshot via API
-                  // This would require implementing a temporal snapshot creation endpoint
-                  console.log(`Snapshot for ${snapshot.date}: ${snapshot.symbols.join(', ')} (${snapshot.reason})`);
+                  // Create historical snapshot via temporal API
+                  try {
+                    const snapshotResult = await temporalUniverseAPI.createSnapshot(
+                      targetUniverse.id,
+                      {
+                        snapshot_date: snapshot.date,
+                        screening_criteria: {
+                          reason: snapshot.reason,
+                          import_source: 'csv_upload'
+                        }
+                      }
+                    );
+                    
+                    if (snapshotResult.success) {
+                      console.log(`✅ Snapshot created for ${snapshot.date}: ${snapshot.symbols.join(', ')}`);
+                    } else {
+                      console.warn(`⚠️ Failed to create snapshot for ${snapshot.date}:`, snapshotResult.message);
+                    }
+                  } catch (snapshotError) {
+                    console.error(`❌ Error creating snapshot for ${snapshot.date}:`, snapshotError);
+                  }
                 }
               } catch (snapshotError) {
                 console.error(`Failed to process snapshot ${snapshot.date}:`, snapshotError);

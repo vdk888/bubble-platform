@@ -72,12 +72,12 @@ const UniverseEditor: React.FC<UniverseEditorProps> = ({
 
     try {
       const result = await assetAPI.validate(newUniqueSymbols);
-      if (result.success && result.data) {
+      if (result.success && result.data && result.data.validation_results) {
         const validationMap = result.data.validation_results;
         setValidationResults(prev => ({ ...prev, ...validationMap }));
 
         // Create temporary Asset objects for valid symbols
-        const validationResults = Object.values(result.data.validation_results);
+        const validationResults = Object.values(validationMap);
         const newAssets: Asset[] = validationResults
           .filter(v => v.is_valid)
           .map(validation => ({
