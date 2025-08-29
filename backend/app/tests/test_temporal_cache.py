@@ -8,6 +8,7 @@ import pytest
 import asyncio
 from datetime import datetime, date, timedelta
 from unittest.mock import AsyncMock, patch
+import os
 
 from app.services.implementations.redis_temporal_cache import RedisTemporalCache
 from app.services.interfaces.security import ITemporalCache
@@ -368,7 +369,8 @@ class TestTemporalCacheIntegration:
     async def test_interface_compliance(self):
         """Test that RedisTemporalCache implements ITemporalCache correctly"""
         
-        cache = RedisTemporalCache()
+        # Use test Redis URL that won't affect production
+        cache = RedisTemporalCache(redis_url="redis://localhost:6379/0")
         assert isinstance(cache, ITemporalCache)
         
         # Verify all interface methods exist

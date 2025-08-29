@@ -44,13 +44,19 @@ const UniverseTable: React.FC<UniverseTableProps> = ({
       return;
     }
 
+    // Prevent concurrent fetches for already loading universes
+    const universesToFetch = universes.filter(u => !temporalData[u.id]?.loading);
+    if (universesToFetch.length === 0) {
+      return;
+    }
+
     console.log('🔄 UniverseTable: Fetching temporal data for universes', {
       universeCount: universes.length,
       temporalModeEnabled
     });
 
-    // Fetch temporal data for each universe
-    const temporalPromises = universes.map(async (universe) => {
+    // Fetch temporal data for each universe that isn't already loading
+    const temporalPromises = universesToFetch.map(async (universe) => {
       try {
         setTemporalData(prev => ({
           ...prev,
@@ -128,7 +134,7 @@ const UniverseTable: React.FC<UniverseTableProps> = ({
     });
 
     await Promise.all(temporalPromises);
-  }, [temporalModeEnabled, universes]);
+  }, [temporalModeEnabled, universes.map(u => u.id).join(',')]); // Use stable universe ID string
 
   // Helper function for formatting dates
   const formatDate = useCallback((dateString: string) => {

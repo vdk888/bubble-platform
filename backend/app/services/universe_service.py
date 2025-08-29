@@ -19,6 +19,7 @@ from .interfaces.screener import IScreener, ScreeningCriteria, ScreeningResult
 from .implementations.fundamental_screener import FundamentalScreener
 from .interfaces.security import ITemporalCache, IConcurrentProcessor, ITurnoverOptimizer
 from .implementations.redis_temporal_cache import RedisTemporalCache
+from ..core.config import settings
 from .implementations.memory_concurrent_processor import UniverseCalculationProcessor
 from .implementations.advanced_turnover_optimizer import AdvancedTurnoverOptimizer
 
@@ -74,7 +75,7 @@ class UniverseService:
         turnover_optimizer: ITurnoverOptimizer = None
     ):
         self.db = db
-        self.temporal_cache = temporal_cache or RedisTemporalCache()
+        self.temporal_cache = temporal_cache or RedisTemporalCache(redis_url=settings.redis_url)
         self.concurrent_processor = concurrent_processor or UniverseCalculationProcessor()
         self.turnover_optimizer = turnover_optimizer or AdvancedTurnoverOptimizer()
     

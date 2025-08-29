@@ -8,6 +8,7 @@ Following Interface-First Design methodology from planning/0_dev.md
 """
 import json
 import hashlib
+import os
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta, timezone
 import redis.asyncio as redis
@@ -31,7 +32,7 @@ class RedisTemporalCache(ITemporalCache):
     def __init__(
         self,
         redis_client: redis.Redis = None,
-        redis_url: str = "redis://localhost:6379",
+        redis_url: str = None,
         key_prefix: str = "bubble:temporal",
         default_ttl: int = 3600,
         enable_compression: bool = True
@@ -47,7 +48,7 @@ class RedisTemporalCache(ITemporalCache):
             enable_compression: Enable data compression
         """
         self.redis_client = redis_client
-        self.redis_url = redis_url
+        self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379")
         self.key_prefix = key_prefix
         self.default_ttl = default_ttl
         self.enable_compression = enable_compression

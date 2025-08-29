@@ -1,7 +1,8 @@
 from sqlalchemy import Column, String, Text, DECIMAL, BIGINT, Boolean, DateTime, Index, ForeignKey, JSON
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
+import re
 from .base import BaseModel
 
 class Asset(BaseModel):
@@ -16,7 +17,7 @@ class Asset(BaseModel):
     __tablename__ = "assets"
     
     # Core asset identification
-    symbol = Column(String(20), unique=True, nullable=False, index=True)
+    symbol = Column(String(50), unique=True, nullable=False, index=True)  # Increased from 20 to 50 for longer symbols
     name = Column(String(255), nullable=False)
     
     # Fundamental data for screening
@@ -72,6 +73,32 @@ class Asset(BaseModel):
         age_hours = (now - self.last_validated_at).total_seconds() / 3600
         return age_hours > max_age_hours
     
+    @validates('symbol')
+    def validate_symbol(self, key, symbol):
+        """Validate that symbol looks like a valid stock ticker"""
+        if not symbol:
+            raise ValueError("Symbol cannot be empty")
+        
+        # Check for obvious non-symbol patterns
+        if len(symbol) > 20:  # Even with increased length, flag unusually long symbols
+            raise ValueError(f"Symbol '{symbol}' appears to be descriptive text, not a ticker symbol")
+        
+        # Check for patterns that suggest descriptive text
+        descriptive_patterns = [
+            r'universe',
+            r'without',
+            r'temporal',
+            r'data',
+            r'static',
+            r'\s+',  # Multiple spaces
+        ]
+        
+        for pattern in descriptive_patterns:
+            if re.search(pattern, symbol.lower()):
+                raise ValueError(f"Symbol '{symbol}' appears to contain descriptive text. Please use valid ticker symbols only (e.g., AAPL, GOOGL, MSFT)")
+        
+        return symbol.upper()  # Always store symbols in uppercase
+
     def update_validation_status(
         self, 
         is_valid: bool, 

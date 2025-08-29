@@ -58,10 +58,10 @@
   - Manual asset selection (stocks, ETFs, bonds)
   - Basic CRUD operations
   - Asset validation and metadata storage
-  - **🚀 NEW: Temporal universe snapshots with point-in-time composition tracking**
-  - **🚀 NEW: Historical universe evolution timeline for survivorship bias elimination**
+  - **Temporal universe snapshots with point-in-time composition tracking (Sprint 2.5 core)**
+  - **Historical universe evolution timeline for survivorship bias elimination (Sprint 2.5 core)**
 - **API Endpoints**: `GET/POST/PUT/DELETE /api/v1/universes`
-- **🚀 NEW: Temporal APIs**: `/universes/{id}/timeline`, `/universes/{id}/snapshots`, `/universes/{id}/composition/{date}`
+- **Temporal APIs**: `/universes/{id}/timeline`, `/universes/{id}/snapshots`, `/universes/{id}/composition/{date}` (Sprint 2.5 core)
 
 **📁 `/backend/app/services/indicator_service.py`**
 - **Phase**: MVP  

@@ -6,6 +6,7 @@ from app.services.universe_service import UniverseService
 from app.services.implementations.redis_temporal_cache import RedisTemporalCache
 from app.services.implementations.memory_concurrent_processor import UniverseCalculationProcessor
 from app.services.implementations.advanced_turnover_optimizer import AdvancedTurnoverOptimizer
+from app.core.config import settings
 
 import asyncio
 from datetime import datetime
@@ -14,7 +15,7 @@ async def comprehensive_integration_test():
     print("Starting comprehensive enterprise features integration test...")
     
     # Initialize all enterprise services
-    temporal_cache = RedisTemporalCache()
+    temporal_cache = RedisTemporalCache(redis_url=settings.redis_url)
     concurrent_processor = UniverseCalculationProcessor()
     turnover_optimizer = AdvancedTurnoverOptimizer()
     

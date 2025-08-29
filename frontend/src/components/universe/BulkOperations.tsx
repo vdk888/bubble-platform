@@ -159,12 +159,12 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
                 
                 if (addResult.success && addResult.data) {
                   const bulkResult: BulkValidationResult = addResult.data;
-                  totalAdded += bulkResult.valid_symbols;
+                  totalAdded += bulkResult.success_count;
                   
-                  // Collect failed symbols
-                  const failed = Object.values(bulkResult.validation_results)
-                    .filter(r => !r.is_valid)
-                    .map(r => r.symbol);
+                  // Collect failed symbols from actual backend structure
+                  const failed = bulkResult.failed
+                    ? bulkResult.failed.map(f => f.symbol)
+                    : [];
                   allFailedSymbols.push(...failed);
                   
                   // TODO: Create historical snapshot via API
@@ -194,10 +194,10 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
               results.push({
                 success: true,
                 universe_name: universeName,
-                added_count: bulkResult.valid_symbols,
-                failed_symbols: Object.values(bulkResult.validation_results)
-                  .filter(r => !r.is_valid)
-                  .map(r => r.symbol)
+                added_count: bulkResult.success_count,
+                failed_symbols: bulkResult.failed
+                  ? bulkResult.failed.map(f => f.symbol)
+                  : []
               });
             } else {
               results.push({

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { temporalUniverseAPI } from '../services/api';
 import {
   UniverseSnapshot,
@@ -28,11 +28,17 @@ export function useUniverseTimeline(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<UniverseTimelineResponse['metadata'] | null>(null);
+  
+  // Track the last request to prevent duplicate calls
+  const lastRequestRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
 
-  // Default filters - last 6 months, monthly frequency
+  // Default filters - last 6 months, monthly frequency  
+  // Use a stable date that doesn't change on every render
   const defaultFilters: TimelineFilter = useMemo(() => {
-    const endDate = new Date();
-    const startDate = new Date();
+    const now = Date.now();
+    const endDate = new Date(now);
+    const startDate = new Date(now);
     startDate.setMonth(startDate.getMonth() - 6);
 
     return {
@@ -44,17 +50,27 @@ export function useUniverseTimeline(
       show_empty_periods: false,
       include_turnover_analysis: true
     };
-  }, []);
+  }, []); // This memo only runs once on mount
 
   const filters = useMemo(() => ({
     ...defaultFilters,
     ...initialFilters
-  }), [defaultFilters, initialFilters]);
+  }), [defaultFilters, JSON.stringify(initialFilters || {})]); // Use JSON.stringify for stable comparison
 
   const fetchTimeline = useCallback(async () => {
-    if (!universeId) return;
+    if (!universeId || !isMountedRef.current) return;
+
+    // Create a unique request key to prevent duplicate calls
+    const requestKey = `${universeId}-${JSON.stringify(filters)}`;
+    
+    // Skip if we already have the same request pending
+    if (lastRequestRef.current === requestKey) {
+      console.log('🚫 useUniverseTimeline: Skipping duplicate request', { requestKey });
+      return;
+    }
 
     try {
+      lastRequestRef.current = requestKey;
       setLoading(true);
       setError(null);
       
@@ -69,11 +85,19 @@ export function useUniverseTimeline(
           snapshotCount: response.data.length,
           dateRange: `${filters.date_range.start_date} to ${filters.date_range.end_date}`
         });
+        
+        // Clear request tracking after successful load (allow refresh after 5 seconds)
+        setTimeout(() => {
+          if (lastRequestRef.current === requestKey) {
+            lastRequestRef.current = null;
+          }
+        }, 5000);
       } else {
         setError(response.message || 'Failed to fetch timeline');
         setTimeline([]);
         setMetadata(null);
         console.error('❌ useUniverseTimeline: API returned error', response.message);
+        lastRequestRef.current = null; // Allow retry immediately on error
       }
     } catch (err: any) {
       const errorMessage = err.message || 'Network error while fetching timeline';
@@ -81,15 +105,23 @@ export function useUniverseTimeline(
       setTimeline([]);
       setMetadata(null);
       console.error('❌ useUniverseTimeline: Exception occurred', err);
+      lastRequestRef.current = null; // Allow retry immediately on error
     } finally {
       setLoading(false);
     }
-  }, [universeId, filters]);
+  }, [universeId, JSON.stringify(filters)]); // Use JSON.stringify for stable filters comparison
 
   // Auto-fetch on universe change or filter change
   useEffect(() => {
     fetchTimeline();
   }, [fetchTimeline]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   return {
     timeline,
@@ -199,7 +231,7 @@ export function useUniverseSnapshots(
     } finally {
       setCreating(false);
     }
-  }, [universeId, metadata]);
+  }, [universeId]); // Remove metadata from deps to prevent infinite re-creation
 
   // Auto-fetch on universe change
   useEffect(() => {
@@ -356,7 +388,7 @@ export function useTurnoverAnalysis(
     if (autoCalculate && snapshots.length > 1) {
       calculateAnalysis(snapshots);
     }
-  }, [snapshots, autoCalculate, calculateAnalysis]);
+  }, [snapshots, autoCalculate]); // Remove calculateAnalysis from deps to prevent circular dependency
 
   return {
     analysis,

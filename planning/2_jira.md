@@ -74,15 +74,22 @@ Acceptance Criteria:
 - Signal conflict resolution with priority hierarchy: MACD > RSI > Momentum
 - All signal generation events logged with timestamps, parameters, and audit trail
 
-**Performance Requirements:**
-- Indicator calculations complete within 2 seconds for 1000 assets
-- API endpoints respond within 500ms (95th percentile)
-- Graceful error handling when indicator calculations fail
+**Performance Requirements with Complete Dataset Approach:**
+- **Temporal indicator calculations complete within 2 seconds for 1000 assets across entire backtest period**
+- **Complete dataset creation: 5x faster than traditional approach via bulk processing**
+- API endpoints respond within 500ms (95th percentile) for temporal filtering operations
+- Graceful error handling when indicator calculations fail with temporal consistency preservation
+- **Ultra-fast temporal backtesting via pre-computed complete datasets (sub-second execution)**
 
-**API Functionality:**
+**API Functionality with Temporal Extensions:**
 - GET /api/v1/indicators/default returns proper configuration objects
 - POST /api/v1/indicators/calculate processes market data and returns indicator signals
 - POST /api/v1/signals/generate creates weighted composite signals from multiple indicators
+
+**Temporal-Aware Indicator APIs (Sprint 3 Innovation):**
+- **POST /api/v1/indicators/temporal-batch** - Bulk calculate indicators for complete universe dataset
+- **GET /api/v1/indicators/temporal/{universe_id}/{date}** - Get indicators for universe composition at specific date
+- **POST /api/v1/signals/temporal-composite** - Generate signals for historical universe members only
 
 As a user, I want to visualize signals on interactive charts so that I can understand when trades are triggered.
 
@@ -124,35 +131,56 @@ Signals update dynamically when parameters change.
 - Performance benchmarks for all new OpenBB endpoints
 - Cost monitoring and usage optimization for OpenBB API calls
 
-Epic 3 – Portfolio Strategy
+Epic 3 – Temporal Strategy & Survivorship-Bias-Free Backtesting
 
 User Stories
 
-As a user, I want to define allocation rules so that I can control how much of each asset is bought.
+As a user, I want to define allocation rules with temporal awareness so that I can control how much of each asset is bought while accounting for universe evolution.
 
 Acceptance Criteria:
 
-User can set rules (weights, max drawdown constraints, etc.).
+User can set rules (weights, max drawdown constraints, etc.) with temporal consistency validation.
 
-Portfolio weights are stored and retrievable.
+Portfolio weights are stored and retrievable with historical evolution tracking.
 
-As a user, I want to run a backtest of my portfolio so that I can validate its performance.
+**Strategy-Universe integration ensures allocation rules adapt to universe changes over time.**
 
-Acceptance Criteria:
+As a user, I want to run a temporal backtest of my portfolio that eliminates survivorship bias so that I can validate realistic performance.
 
-Backtest runs on historical data.
+**Revolutionary Temporal Backtesting Acceptance Criteria:**
 
-Metrics (CAGR, Sharpe, drawdown) are displayed.
+**Survivorship Bias Elimination:**
+- Backtest uses historical universe snapshots from Sprint 2.5 UniverseSnapshot system
+- Only trades assets that were actually in universe at each rebalancing date
+- No retroactive inclusion of assets that weren't available in historical periods
+- Universe composition changes tracked and factored into performance calculations
 
-Equity curve and rolling stats are shown on graphs.
+**Complete Dataset Approach (5x Performance Improvement):**
+- System fetches ALL historical universe members (past + present) upfront
+- Market data and indicators calculated in bulk for entire dataset once
+- Temporal filtering applied during backtest execution for ultra-fast performance
+- Complete dataset cached for reuse across multiple strategy tests
 
-As a user, I want to see the live performance of my portfolio so that I can track it against the backtest.
+**Attribution Analysis:**
+- Performance attribution separates strategy alpha from universe evolution effects
+- Strategy contribution vs universe composition impact clearly identified
+- Transaction costs include both strategy rebalancing and universe turnover costs
+- Realistic performance metrics account for universe stability and turnover rates
 
-Acceptance Criteria:
+**Technical Implementation:**
+- Metrics (CAGR, Sharpe, drawdown) calculated with temporal accuracy
+- Equity curve generation includes universe evolution overlay markers
+- Rolling statistics account for universe composition changes over time
+- Performance comparison: temporal results vs static universe (shows survivorship bias impact)
 
-Live P&L and allocation updates daily.
+As a user, I want to see the live performance of my portfolio with temporal insights so that I can track it against the realistic backtest.
 
-Results shown in both numbers and charts.
+**Temporal Live Performance Acceptance Criteria:**
+
+- Live P&L updates daily with universe composition tracking
+- Performance attribution shows strategy vs universe contribution in real-time
+- Universe evolution impact monitored and displayed with turnover analysis
+- Results shown in enhanced charts with temporal context and historical comparison
 
 Epic 4 – Risk Parity Master Portfolio
 
@@ -200,29 +228,45 @@ Notifications are sent (email/push).
 
 Trade details are included (symbol, quantity, price).
 
-Epic 6 – Backtesting & Performance Visualization
+Epic 6 – Enhanced Temporal Performance Visualization
 
 User Stories
 
-As a user, I want to see pocket backtests so that I can compare individual strategies.
+As a user, I want to see temporal pocket backtests with universe evolution context so that I can compare individual strategies with realistic performance expectations.
+
+**Enhanced Temporal Visualization Acceptance Criteria:**
+
+**Revolutionary Performance Charts:**
+- Equity curves with universe evolution overlay showing composition changes
+- Universe turnover timeline with impact markers on performance
+- Attribution analysis charts separating strategy alpha from universe beta
+- Survivorship bias impact visualization comparing temporal vs static results
+- Drawdown analysis correlated with universe stability periods
+
+**Performance Insights Dashboard:**
+- Universe stability scoring (1.0 = no changes, 0.0 = complete turnover)
+- Average universe size evolution over backtesting period
+- Transaction cost breakdown including universe turnover costs
+- Strategy robustness analysis across different universe evolution periods
+
+As a user, I want to see live pocket performance with temporal context so that I can validate robustness against realistic expectations.
 
 Acceptance Criteria:
 
-Graphs show equity curve, drawdown, rolling Sharpe, etc.
+- Daily performance updates include universe composition changes
+- Real-time attribution analysis (strategy vs universe effects)
+- Universe evolution tracking with stability scoring
+- Performance comparison against temporal backtest expectations
 
-As a user, I want to see live pocket performance so that I can validate robustness.
+As a user, I want to compare master portfolio temporal backtest vs live performance so that I can measure realistic tracking error.
 
-Acceptance Criteria:
+**Temporal Tracking Error Analysis Acceptance Criteria:**
 
-Daily updates shown on performance graphs.
-
-As a user, I want to compare master portfolio backtest vs live so that I can measure tracking error.
-
-Acceptance Criteria:
-
-Both curves are visible on one chart.
-
-Key metrics are recalculated daily.
+- Both temporal backtest and live curves visible on one chart with universe context
+- Universe evolution overlay shows how composition changes affect both curves
+- Attribution-based tracking error analysis (strategy vs universe components)
+- Key metrics recalculated daily with temporal accuracy and universe impact assessment
+- Realistic performance expectations based on historical universe evolution patterns
 
 Epic 7 – User Management
 

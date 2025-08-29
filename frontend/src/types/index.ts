@@ -51,12 +51,24 @@ export interface ValidationResult {
 }
 
 export interface BulkValidationResult {
-  total_symbols: number;
-  valid_symbols: number;
-  invalid_symbols: number;
-  cached_results: number;
-  real_time_validations: number;
-  validation_results: Record<string, ValidationResult>;
+  success_count: number;
+  failure_count: number;
+  total_processed: number;
+  successful: Array<{
+    symbol: string;
+    asset_id: string;
+    position: number;
+    newly_created: boolean;
+  }>;
+  failed: Array<{
+    symbol: string;
+    error: string;
+  }>;
+  warnings: string[];
+  // Keep legacy fields for backwards compatibility
+  valid_symbols?: number;
+  total_symbols?: number;
+  validation_results?: Record<string, ValidationResult>;
 }
 
 // Search Types
