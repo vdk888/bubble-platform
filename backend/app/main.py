@@ -9,7 +9,7 @@ from .models.base import Base
 from .core.database import engine
 # Enterprise middleware imports (conditionally enabled)
 from .core.middleware.rate_limiting import RateLimitMiddleware, TESTING_CONFIG
-from .api.v1 import health, features, auth, rls_admin, universes, assets
+from .api.v1 import health, features, auth, rls_admin, universes, assets, market_data
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -112,6 +112,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(rls_admin.router, prefix="/api/v1/admin/rls", tags=["RLS Administration"])
 app.include_router(universes.router, prefix="/api/v1/universes", tags=["Universe Management"])
 app.include_router(assets.router, prefix="/api/v1/assets", tags=["Asset Management"])
+app.include_router(market_data.router, tags=["Market Data - Triple Provider"])
 
 @app.get("/", tags=["Root"])
 async def root():

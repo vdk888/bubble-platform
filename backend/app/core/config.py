@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     yahoo_finance_api_key: Optional[str] = None
     alpha_vantage_api_key: Optional[str] = None
     
+    # OpenBB Terminal SDK
+    openbb_api_key: Optional[str] = None
+    openbb_pro_enabled: bool = False
+    openbb_request_delay: float = 0.2
+    openbb_max_workers: int = 3
+    openbb_timeout: int = 30
+    
     # Authentication
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
@@ -37,6 +44,13 @@ class Settings(BaseSettings):
     # AI Agent
     max_conversation_history: int = 50
     ai_response_timeout: int = 30
+    
+    # Data Provider Configuration
+    primary_data_provider: str = "openbb"  # openbb, yahoo, alpha_vantage
+    enable_provider_failover: bool = True
+    provider_failover_chain: str = "openbb,yahoo,alpha_vantage"  # Comma-separated priority order
+    data_cache_ttl_seconds: int = 300
+    enable_data_quality_monitoring: bool = True
     
     @field_validator('database_url')
     @classmethod

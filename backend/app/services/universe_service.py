@@ -1731,7 +1731,17 @@ class UniverseService:
             
             # Handle default dates if None provided
             if start_date is None:
-                start_date = date.today() - timedelta(days=90)  # Default to 3 months ago
+                # If no start date provided, get the earliest snapshot for this universe
+                earliest_snapshot = self.db.query(UniverseSnapshot).filter(
+                    UniverseSnapshot.universe_id == universe_id
+                ).order_by(UniverseSnapshot.snapshot_date.asc()).first()
+                
+                if earliest_snapshot:
+                    start_date = earliest_snapshot.snapshot_date
+                else:
+                    # Fallback to 1 year ago if no snapshots exist
+                    start_date = date.today() - timedelta(days=365)
+            
             if end_date is None:
                 end_date = date.today()  # Default to today
             
