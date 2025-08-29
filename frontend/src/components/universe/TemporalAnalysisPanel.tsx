@@ -8,7 +8,9 @@ import {
   ChevronRightIcon,
   CalendarDaysIcon,
   TrendingUpIcon,
-  AlertCircleIcon
+  AlertCircleIcon,
+  BuildingIcon,
+  TableIcon
 } from 'lucide-react';
 import { Universe } from '../../types';
 import { UniverseSnapshot, DateRange, TurnoverAnalysis as TurnoverAnalysisType } from '../../types/temporal';
@@ -17,11 +19,14 @@ import TimelineView from './TimelineView';
 import UniverseEvolution from './UniverseEvolution';
 import TurnoverAnalysis from './TurnoverAnalysis';
 import UniverseTimeline from './UniverseTimeline';
+import AssetCompositionView from './AssetCompositionView';
+import HorizontalTimelineTable from './HorizontalTimelineTable';
+import SimpleTimelineTable from './SimpleTimelineTable';
 
 interface TemporalAnalysisPanelProps {
   universe: Universe;
-  view: 'timeline' | 'evolution' | 'analysis' | null;
-  onViewChange: (view: 'timeline' | 'evolution' | 'analysis' | null) => void;
+  view: 'timeline' | 'table' | 'simple-table' | 'evolution' | 'analysis' | 'assets' | null;
+  onViewChange: (view: 'timeline' | 'table' | 'simple-table' | 'evolution' | 'analysis' | 'assets' | null) => void;
   onClose: () => void;
   className?: string;
 }
@@ -84,7 +89,7 @@ const TemporalAnalysisPanel: React.FC<TemporalAnalysisPanelProps> = ({
     analysis: turnoverAnalysis,
     loading: analysisLoading,
     error: analysisError
-  } = useTurnoverAnalysis(snapshots);
+  } = useTurnoverAnalysis(snapshots, !timelineLoading && snapshots.length > 1);
 
   // Set default view if none provided
   useEffect(() => {
@@ -108,6 +113,13 @@ const TemporalAnalysisPanel: React.FC<TemporalAnalysisPanelProps> = ({
     if (matchingSnapshot) {
       setSelectedSnapshot(matchingSnapshot);
     }
+  };
+
+  // Handle asset composition view request
+  const handleAssetCompositionView = (snapshot: UniverseSnapshot) => {
+    setSelectedSnapshot(snapshot);
+    setSelectedDate(snapshot.snapshot_date);
+    onViewChange('assets');
   };
 
   // Calculate panel statistics
@@ -145,7 +157,7 @@ const TemporalAnalysisPanel: React.FC<TemporalAnalysisPanelProps> = ({
   }, [snapshots, timelineMetadata]);
 
   // Handle view navigation
-  const viewOrder = ['timeline', 'evolution', 'analysis'] as const;
+  const viewOrder = ['timeline', 'table', 'simple-table', 'evolution', 'analysis', 'assets'] as const;
   const currentViewIndex = view ? viewOrder.indexOf(view) : -1;
 
   const handlePrevView = () => {
@@ -287,6 +299,22 @@ const TemporalAnalysisPanel: React.FC<TemporalAnalysisPanelProps> = ({
               Timeline
             </TabButton>
             <TabButton 
+              active={view === 'table'} 
+              onClick={() => onViewChange('table')}
+              icon={TableIcon}
+              disabled={timelineLoading}
+            >
+              Grid Table
+            </TabButton>
+            <TabButton 
+              active={view === 'simple-table'} 
+              onClick={() => onViewChange('simple-table')}
+              icon={TableIcon}
+              disabled={timelineLoading}
+            >
+              Simple Table
+            </TabButton>
+            <TabButton 
               active={view === 'evolution'} 
               onClick={() => onViewChange('evolution')}
               icon={BarChart3Icon}
@@ -302,13 +330,23 @@ const TemporalAnalysisPanel: React.FC<TemporalAnalysisPanelProps> = ({
             >
               Analysis
             </TabButton>
+            <TabButton 
+              active={view === 'assets'} 
+              onClick={() => onViewChange('assets')}
+              icon={BuildingIcon}
+              disabled={timelineLoading || !selectedSnapshot}
+            >
+              Assets
+            </TabButton>
           </div>
 
           {/* Loading indicator */}
-          {(timelineLoading || analysisLoading) && (
+          {(timelineLoading || (analysisLoading && view === 'analysis')) && (
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-              <span>Loading temporal data...</span>
+              <span>
+                {timelineLoading ? 'Loading temporal data...' : 'Calculating turnover analysis...'}
+              </span>
             </div>
           )}
         </div>
@@ -369,10 +407,59 @@ const TemporalAnalysisPanel: React.FC<TemporalAnalysisPanelProps> = ({
                     universe_id={universe.id}
                     snapshots={snapshots}
                     onSnapshotSelect={handleSnapshotSelect}
+                    onAssetCompositionView={handleAssetCompositionView}
                     showTurnoverColumn={true}
-                    showActionsColumn={false}
+                    showActionsColumn={true}
                   />
                 </div>
+              </div>
+            )}
+
+            {view === 'table' && (
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-gray-900 flex items-center">
+                  <TableIcon className="w-4 h-4 mr-2 text-blue-500" />
+                  Portfolio Grid Table
+                </h4>
+                <div className="text-sm text-gray-600 mb-4">
+                  View your portfolio composition across time periods. Each column represents a snapshot date, 
+                  and each row shows an asset. Green dots indicate the asset was present in the portfolio.
+                </div>
+                <HorizontalTimelineTable
+                  snapshots={snapshots}
+                  onDateClick={(date, snapshot) => {
+                    handleSnapshotSelect(snapshot);
+                    handleDateSelect(date);
+                  }}
+                  onAssetClick={(asset, dates) => {
+                    console.log(`Asset ${asset} appeared in snapshots:`, dates);
+                    // Could show a modal or tooltip with asset timeline details
+                  }}
+                  maxDatesToShow={10}
+                  className="shadow-sm"
+                />
+              </div>
+            )}
+
+            {view === 'simple-table' && (
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-gray-900 flex items-center">
+                  <TableIcon className="w-4 h-4 mr-2 text-blue-500" />
+                  Simple Timeline Table
+                </h4>
+                <div className="text-sm text-gray-600 mb-4">
+                  Clean timeline view with asset symbols arranged by date. Each column shows the portfolio 
+                  composition at that point in time, with asset symbols displayed directly in the cells.
+                </div>
+                <SimpleTimelineTable
+                  snapshots={snapshots}
+                  onDateClick={(date, snapshot) => {
+                    handleSnapshotSelect(snapshot);
+                    handleDateSelect(date);
+                  }}
+                  maxDatesToShow={10}
+                  className="shadow-sm"
+                />
               </div>
             )}
             
@@ -402,6 +489,28 @@ const TemporalAnalysisPanel: React.FC<TemporalAnalysisPanelProps> = ({
                 <TurnoverAnalysis
                   universe_id={universe.id}
                   snapshots={snapshots}
+                  className="bg-gray-50 rounded-lg"
+                />
+              </div>
+            )}
+            
+            {view === 'assets' && selectedSnapshot && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-gray-900 flex items-center">
+                    <BuildingIcon className="w-4 h-4 mr-2 text-blue-500" />
+                    Asset Composition Details
+                  </h4>
+                  <div className="text-xs text-gray-500 bg-blue-50 px-2 py-1 rounded-full">
+                    {new Date(selectedSnapshot.snapshot_date).toLocaleDateString()} • {selectedSnapshot.assets.length} assets
+                  </div>
+                </div>
+                <AssetCompositionView
+                  universeId={universe.id}
+                  snapshot={selectedSnapshot}
+                  selectedDate={selectedDate || undefined}
+                  showMetadata={true}
+                  showActions={true}
                   className="bg-gray-50 rounded-lg"
                 />
               </div>

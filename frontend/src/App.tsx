@@ -5,8 +5,6 @@ import { AuthProvider, useAuth } from './components/auth/AuthProvider';
 import { AuthPage } from './components/auth/AuthPage';
 import './index.css';
 
-// Development authentication - directly in React component
-const DEV_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmN2YxNmM4ZS0yMTI1LTQxYjEtYjQwMi1lZjBlYjJlMDM0M2UiLCJlbWFpbCI6ImpvcmlzODg4QGhvdG1haWwuZnIiLCJyb2xlIjoidXNlciIsInN1YnNjcmlwdGlvbl90aWVyIjoiZnJlZSIsImlhdCI6MTc1NjA3MjcwOSwiZXhwIjoxNzU2MDc0NTA5LCJqdGkiOiIwZjI1cVJQek5IWFkyX1BNN1RsQ25faFNIZlB4aGdWX0tZQmg4Mm5sdFFrIiwidHlwZSI6ImFjY2Vzc190b2tlbiJ9.sCLooBMBvyymOGv50rQgINNqY8-EUWVed0yTewiM71g";
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -42,13 +40,24 @@ function AppRoutes() {
     currentPath: window.location.pathname 
   });
   
-  // Force set authentication token in development for quick testing
+  // Clear any expired tokens on app start to prevent reload loops
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && !localStorage.getItem('access_token')) {
-      console.log('🔄 SETTING FRESH TOKEN IN REACT APP');
-      localStorage.setItem('access_token', DEV_TOKEN);
-      console.log('✅ Token set successfully:', DEV_TOKEN.substring(0, 50) + '...');
-      window.location.reload(); // Refresh to trigger auth validation
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      try {
+        // Check if token is expired by parsing JWT
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const now = Math.floor(Date.now() / 1000);
+        if (payload.exp && payload.exp < now) {
+          console.log('🧹 Clearing expired token to prevent reload loop');
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+        }
+      } catch (error) {
+        console.log('🧹 Clearing invalid token to prevent reload loop');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+      }
     }
   }, []);
 

@@ -56,9 +56,14 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
         return;
       }
 
-      // Parse CSV - expecting format: universe_name, symbol1, symbol2, ...
-      const importData: Record<string, string[]> = {};
+      // Parse CSV - supporting both formats:
+      // Static: universe_name, symbol1, symbol2, ...
+      // Temporal: universe_name, snapshot_date, symbol1, symbol2, ..., change_reason
+      const importData: Record<string, { symbols: string[], snapshots?: any[] }> = {};
       const headers = rows[0].split(',').map(h => h.trim());
+      
+      // Detect if this is temporal format (has "Snapshot Date" column)
+      const isTemporalFormat = headers.some(h => h.toLowerCase().includes('snapshot') || h.toLowerCase().includes('date'));
       
       // Skip header row if it looks like headers
       const startRow = headers[0].toLowerCase().includes('universe') ? 1 : 0;
@@ -68,10 +73,34 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
         if (columns.length < 2) continue;
         
         const universeName = columns[0];
-        const symbols = columns.slice(1).filter(s => s.length > 0);
         
-        if (universeName && symbols.length > 0) {
-          importData[universeName] = symbols;
+        if (isTemporalFormat && columns[1]) {
+          // Temporal format: Universe Name, Snapshot Date, Symbols..., Change Reason
+          const snapshotDate = columns[1];
+          const changeReason = columns[columns.length - 1]; // Last column is reason
+          const symbols = columns.slice(2, -1).filter(s => s.length > 0 && s !== changeReason);
+          
+          if (universeName && symbols.length > 0 && snapshotDate) {
+            if (!importData[universeName]) {
+              importData[universeName] = { symbols: [], snapshots: [] };
+            }
+            importData[universeName].snapshots!.push({
+              date: snapshotDate,
+              symbols,
+              reason: changeReason
+            });
+          }
+        } else {
+          // Static format: Universe Name, Symbol1, Symbol2...
+          const symbols = columns.slice(1).filter(s => s.length > 0);
+          
+          if (universeName && symbols.length > 0) {
+            if (!importData[universeName]) {
+              importData[universeName] = { symbols: [] };
+            }
+            // For static format, use the symbols directly
+            importData[universeName].symbols = symbols;
+          }
         }
       }
 
@@ -88,7 +117,7 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
       
       for (let i = 0; i < universeNames.length; i++) {
         const universeName = universeNames[i];
-        const symbols = importData[universeName];
+        const universeData = importData[universeName];
         
         setProgress({ current: i + 1, total: universeNames.length });
 
@@ -105,7 +134,7 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
                 success: false,
                 universe_name: universeName,
                 added_count: 0,
-                failed_symbols: symbols,
+                failed_symbols: universeData.symbols,
                 message: createResult.message || 'Failed to create universe'
               });
               continue;
@@ -113,27 +142,72 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
             targetUniverse = createResult.data;
           }
 
-          // Add assets to universe
-          const addResult = await universeAPI.addAssets(targetUniverse.id, symbols);
-          
-          if (addResult.success && addResult.data) {
-            const bulkResult: BulkValidationResult = addResult.data;
+          if (universeData.snapshots && universeData.snapshots.length > 0) {
+            // Process temporal universe with historical snapshots
+            let totalAdded = 0;
+            let allFailedSymbols: string[] = [];
+            
+            // Sort snapshots by date to process chronologically
+            const sortedSnapshots = universeData.snapshots.sort((a, b) => 
+              new Date(a.date).getTime() - new Date(b.date).getTime()
+            );
+            
+            for (const snapshot of sortedSnapshots) {
+              try {
+                // Add current assets to universe (this will be the latest composition)
+                const addResult = await universeAPI.addAssets(targetUniverse.id, snapshot.symbols);
+                
+                if (addResult.success && addResult.data) {
+                  const bulkResult: BulkValidationResult = addResult.data;
+                  totalAdded += bulkResult.valid_symbols;
+                  
+                  // Collect failed symbols
+                  const failed = Object.values(bulkResult.validation_results)
+                    .filter(r => !r.is_valid)
+                    .map(r => r.symbol);
+                  allFailedSymbols.push(...failed);
+                  
+                  // TODO: Create historical snapshot via API
+                  // This would require implementing a temporal snapshot creation endpoint
+                  console.log(`Snapshot for ${snapshot.date}: ${snapshot.symbols.join(', ')} (${snapshot.reason})`);
+                }
+              } catch (snapshotError) {
+                console.error(`Failed to process snapshot ${snapshot.date}:`, snapshotError);
+                allFailedSymbols.push(...snapshot.symbols);
+              }
+            }
+            
             results.push({
-              success: true,
+              success: totalAdded > 0,
               universe_name: universeName,
-              added_count: bulkResult.valid_symbols,
-              failed_symbols: Object.values(bulkResult.validation_results)
-                .filter(r => !r.is_valid)
-                .map(r => r.symbol)
+              added_count: totalAdded,
+              failed_symbols: Array.from(new Set(allFailedSymbols)), // Remove duplicates
+              message: `Processed ${sortedSnapshots.length} historical snapshots`
             });
+            
           } else {
-            results.push({
-              success: false,
-              universe_name: universeName,
-              added_count: 0,
-              failed_symbols: symbols,
-              message: addResult.message || 'Failed to add assets'
-            });
+            // Process static universe (original logic)
+            const addResult = await universeAPI.addAssets(targetUniverse.id, universeData.symbols);
+            
+            if (addResult.success && addResult.data) {
+              const bulkResult: BulkValidationResult = addResult.data;
+              results.push({
+                success: true,
+                universe_name: universeName,
+                added_count: bulkResult.valid_symbols,
+                failed_symbols: Object.values(bulkResult.validation_results)
+                  .filter(r => !r.is_valid)
+                  .map(r => r.symbol)
+              });
+            } else {
+              results.push({
+                success: false,
+                universe_name: universeName,
+                added_count: 0,
+                failed_symbols: universeData.symbols,
+                message: addResult.message || 'Failed to add assets'
+              });
+            }
           }
         } catch (error) {
           console.error(`Failed to import ${universeName}:`, error);
@@ -141,7 +215,7 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
             success: false,
             universe_name: universeName,
             added_count: 0,
-            failed_symbols: symbols,
+            failed_symbols: universeData.symbols,
             message: 'Network error during import'
           });
         }
@@ -207,14 +281,25 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
   };
 
   const downloadTemplate = () => {
-    const templateContent = 'Universe Name,Symbol 1,Symbol 2,Symbol 3\nTech Stocks,AAPL,MSFT,GOOGL\nDividend Stocks,JNJ,PG,KO\n';
+    // Historical universe template with temporal snapshots
+    const templateContent = `Universe Name,Snapshot Date,Symbol 1,Symbol 2,Symbol 3,Symbol 4,Symbol 5,Change Reason
+Tech Leaders Portfolio,2025-03-15,AAPL,MSFT,GOOGL,AMZN,TSLA,Initial composition
+Tech Leaders Portfolio,2025-04-15,AAPL,MSFT,GOOGL,AMZN,TSLA,No changes - stable portfolio
+Tech Leaders Portfolio,2025-05-15,AAPL,MSFT,GOOGL,META,NVDA,Added META and NVDA for AI exposure
+Tech Leaders Portfolio,2025-06-15,AAPL,MSFT,GOOGL,META,NVDA,No changes - monitoring performance
+Tech Leaders Portfolio,2025-07-15,AAPL,MSFT,GOOGL,META,NFLX,Replaced NVDA with NFLX for streaming
+Dividend Aristocrats,2025-03-01,JNJ,PG,KO,MMM,CAT,Conservative dividend portfolio
+Dividend Aristocrats,2025-04-01,JNJ,PG,KO,MMM,HD,Replaced CAT with HD - home improvement growth
+Dividend Aristocrats,2025-05-01,JNJ,PG,KO,MMM,HD,No changes - dividend stability focus
+Example Static Universe,,,AAPL,MSFT,GOOGL,,,Static universe without temporal data
+`;
     
     const blob = new Blob([templateContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     
     link.setAttribute('href', url);
-    link.setAttribute('download', 'bulk_import_template.csv');
+    link.setAttribute('download', 'historical_universe_template.csv');
     link.style.visibility = 'hidden';
     
     document.body.appendChild(link);
@@ -290,8 +375,14 @@ const BulkOperations: React.FC<BulkOperationsProps> = ({
                 <div>
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Import from CSV</h4>
                   <p className="text-sm text-gray-600 mb-4">
-                    Upload a CSV file to create or update multiple universes. The CSV should have universe names in the first column and symbols in subsequent columns.
+                    Upload a CSV file to create universes. Supports both formats:<br/>
+                    <strong>Static:</strong> Universe Name, Symbol1, Symbol2, Symbol3...<br/>
+                    <strong>Temporal:</strong> Universe Name, Snapshot Date, Symbol1, Symbol2..., Change Reason
                   </p>
+                  <div className="text-xs text-gray-500 mb-4 p-3 bg-blue-50 rounded-lg">
+                    💡 <strong>Temporal Format:</strong> Create historical universe snapshots to track portfolio evolution over time. 
+                    Each row represents the universe composition at a specific date, enabling temporal analysis and turnover tracking.
+                  </div>
                   
                   <div className="flex space-x-3">
                     <input

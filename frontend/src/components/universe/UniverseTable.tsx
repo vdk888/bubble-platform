@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
   EditIcon, 
   TrashIcon, 
@@ -28,6 +28,153 @@ const UniverseTable: React.FC<UniverseTableProps> = ({
   onTimelineView,
   onTemporalAnalysis,
 }) => {
+  // Temporal data storage for universes when temporal mode is enabled
+  const [temporalData, setTemporalData] = useState<Record<string, {
+    snapshot_count: number;
+    total_snapshots: number;
+    avg_turnover: number;
+    last_snapshot_date: string;
+    loading: boolean;
+    error: string | null;
+  }>>({});
+
+  // Fetch temporal data for all universes when temporal mode is enabled
+  const fetchTemporalData = useCallback(async () => {
+    if (!temporalModeEnabled || universes.length === 0) {
+      return;
+    }
+
+    console.log('🔄 UniverseTable: Fetching temporal data for universes', {
+      universeCount: universes.length,
+      temporalModeEnabled
+    });
+
+    // Fetch temporal data for each universe
+    const temporalPromises = universes.map(async (universe) => {
+      try {
+        setTemporalData(prev => ({
+          ...prev,
+          [universe.id]: { ...prev[universe.id], loading: true, error: null }
+        }));
+
+        // Import the API function dynamically to avoid circular imports
+        const { temporalUniverseAPI } = await import('../../services/api');
+        const response = await temporalUniverseAPI.getTimeline(universe.id, {
+          date_range: {
+            start_date: new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 6 months ago
+            end_date: new Date().toISOString().split('T')[0] // today
+          },
+          frequency: 'monthly',
+          show_empty_periods: false,
+          include_turnover_analysis: true
+        });
+
+        if (response.success && response.metadata) {
+          const metadata = response.metadata;
+          const snapshots = response.data || [];
+          
+          // Calculate average turnover from snapshots
+          const turnoverRates = snapshots
+            .filter(s => s.turnover_rate !== null && s.turnover_rate !== undefined)
+            .map(s => s.turnover_rate as number);
+          const avgTurnover = turnoverRates.length > 0 
+            ? turnoverRates.reduce((sum, rate) => sum + rate, 0) / turnoverRates.length
+            : universe.turnover_rate || 0;
+
+          const lastSnapshotDate = snapshots.length > 0 
+            ? snapshots[snapshots.length - 1].snapshot_date 
+            : universe.updated_at;
+
+          setTemporalData(prev => ({
+            ...prev,
+            [universe.id]: {
+              snapshot_count: snapshots.length,
+              total_snapshots: metadata.total_snapshots,
+              avg_turnover: avgTurnover,
+              last_snapshot_date: lastSnapshotDate,
+              loading: false,
+              error: null
+            }
+          }));
+
+          console.log('✅ UniverseTable: Temporal data loaded for universe', {
+            universeId: universe.id,
+            universeName: universe.name,
+            snapshotCount: snapshots.length,
+            totalSnapshots: metadata.total_snapshots
+          });
+        } else {
+          throw new Error(response.message || 'Failed to fetch temporal data');
+        }
+      } catch (error: any) {
+        console.error('❌ UniverseTable: Failed to fetch temporal data for universe', {
+          universeId: universe.id,
+          universeName: universe.name,
+          error: error.message
+        });
+        
+        setTemporalData(prev => ({
+          ...prev,
+          [universe.id]: {
+            snapshot_count: 0,
+            total_snapshots: 0,
+            avg_turnover: universe.turnover_rate || 0,
+            last_snapshot_date: universe.updated_at,
+            loading: false,
+            error: error.message
+          }
+        }));
+      }
+    });
+
+    await Promise.all(temporalPromises);
+  }, [temporalModeEnabled, universes]);
+
+  // Helper function for formatting dates
+  const formatDate = useCallback((dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }, []);
+
+  // Get temporal metadata for a specific universe
+  const getTemporalMetadata = useCallback((universe: Universe) => {
+    const data = temporalData[universe.id];
+    if (!data) {
+      return {
+        snapshot_count: 0,
+        avg_turnover: universe.turnover_rate || 0,
+        last_snapshot_date: universe.updated_at,
+        loading: temporalModeEnabled, // Only show loading if temporal mode is enabled
+        error: null,
+        tooltip: temporalModeEnabled ? 'Loading temporal data...' : 'Temporal mode disabled'
+      };
+    }
+
+    return {
+      snapshot_count: data.total_snapshots, // Use total_snapshots from API metadata
+      avg_turnover: data.avg_turnover,
+      last_snapshot_date: data.last_snapshot_date,
+      loading: data.loading,
+      error: data.error,
+      tooltip: data.error 
+        ? `Error loading temporal data: ${data.error}`
+        : `${data.total_snapshots} temporal snapshots tracked since ${formatDate(universe.created_at)}`
+    };
+  }, [temporalData, temporalModeEnabled, formatDate]);
+
+  // Fetch temporal data when temporal mode is enabled or universes change
+  useEffect(() => {
+    if (temporalModeEnabled) {
+      fetchTemporalData();
+    } else {
+      // Clear temporal data when temporal mode is disabled
+      setTemporalData({});
+    }
+  }, [fetchTemporalData]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -57,14 +204,6 @@ const UniverseTable: React.FC<UniverseTableProps> = ({
       </div>
     );
   }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
 
   const getStatusBadge = (universe: Universe) => {
     if (!universe.is_active) {
@@ -122,32 +261,6 @@ const UniverseTable: React.FC<UniverseTableProps> = ({
     );
   };
 
-  // Enhanced temporal metadata calculation using hooks
-  const getTemporalMetadata = useCallback((universe: Universe) => {
-    // In production, this would be fetched from the temporal API
-    // For now, we'll simulate realistic data based on universe characteristics
-    const createdDate = new Date(universe.created_at);
-    const updatedDate = new Date(universe.updated_at);
-    const monthsOld = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
-    const daysSinceUpdate = Math.floor((Date.now() - updatedDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    // Estimate snapshots based on universe activity and age
-    const estimatedSnapshots = Math.max(1, Math.min(monthsOld + (universe.turnover_rate ? Math.floor(universe.turnover_rate * 10) : 0), 36));
-    
-    // Calculate average turnover based on recent activity
-    const avgTurnover = universe.turnover_rate || 0.1; // Default if no data
-    
-    // Most recent snapshot date (simulated)
-    const lastSnapshotDate = daysSinceUpdate <= 7 ? universe.updated_at : 
-      new Date(Date.now() - (daysSinceUpdate * 24 * 60 * 60 * 1000)).toISOString();
-    
-    return {
-      snapshot_count: estimatedSnapshots,
-      avg_turnover: avgTurnover,
-      last_snapshot_date: lastSnapshotDate,
-      tooltip: `${estimatedSnapshots} temporal snapshots tracked since ${formatDate(universe.created_at)}`
-    };
-  }, []);
 
   return (
     <div className="overflow-hidden">
@@ -234,7 +347,7 @@ const UniverseTable: React.FC<UniverseTableProps> = ({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {universes.map((universe) => {
-              const temporalMetadata = temporalModeEnabled ? getTemporalMetadata(universe) : null;
+              const temporalMetadata = getTemporalMetadata(universe);
               
               return (
               <tr 
@@ -263,13 +376,26 @@ const UniverseTable: React.FC<UniverseTableProps> = ({
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2">
                       <CalendarDaysIcon className="h-4 w-4 text-blue-500" />
-                      <span className="text-sm font-medium text-gray-900">
-                        {temporalMetadata.snapshot_count}
-                      </span>
-                      <div 
-                        className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"
-                        title={temporalMetadata.tooltip}
-                      ></div>
+                      {temporalMetadata.loading ? (
+                        <div className="flex items-center space-x-1">
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                          <span className="text-xs text-gray-500">Loading...</span>
+                        </div>
+                      ) : temporalMetadata.error ? (
+                        <span className="text-sm font-medium text-red-600" title={temporalMetadata.error}>
+                          Error
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-sm font-medium text-gray-900">
+                            {temporalMetadata.snapshot_count}
+                          </span>
+                          <div 
+                            className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"
+                            title={temporalMetadata.tooltip}
+                          ></div>
+                        </>
+                      )}
                     </div>
                   </td>
                 )}
@@ -307,14 +433,29 @@ const UniverseTable: React.FC<UniverseTableProps> = ({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {temporalModeEnabled && temporalMetadata ? (
-                    <div className="flex flex-col">
-                      <span className="font-medium">
-                        {formatDistanceToNow(new Date(temporalMetadata.last_snapshot_date))} ago
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {formatDate(temporalMetadata.last_snapshot_date)}
-                      </span>
-                    </div>
+                    temporalMetadata.loading ? (
+                      <div className="flex items-center space-x-1">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                        <span className="text-xs text-gray-500">Loading...</span>
+                      </div>
+                    ) : temporalMetadata.error ? (
+                      <span className="text-xs text-red-600">Error loading data</span>
+                    ) : (
+                      <div className="flex flex-col">
+                        <span className="font-medium">
+                          {temporalMetadata.last_snapshot_date 
+                            ? formatDistanceToNow(new Date(temporalMetadata.last_snapshot_date)) + ' ago'
+                            : 'Unknown'
+                          }
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {temporalMetadata.last_snapshot_date 
+                            ? formatDate(temporalMetadata.last_snapshot_date)
+                            : 'No date available'
+                          }
+                        </span>
+                      </div>
+                    )
                   ) : (
                     formatDate(universe.updated_at)
                   )}

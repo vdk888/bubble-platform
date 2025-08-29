@@ -14,5 +14,27 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    
+    <!-- Clear expired tokens before React loads to prevent reload loops -->
+    <script>
+      (function() {
+        try {
+          const token = localStorage.getItem('access_token');
+          if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const now = Math.floor(Date.now() / 1000);
+            if (payload.exp && payload.exp < now) {
+              console.log('🧹 Clearing expired token on page load');
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+            }
+          }
+        } catch (e) {
+          console.log('🧹 Clearing invalid token on page load');
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+        }
+      })();
+    </script>
   </body>
 </html>

@@ -1824,11 +1824,11 @@ class UniverseService:
                     snapshot_dict['evolution'] = {
                         'asset_count_change': asset_count_change,
                         'days_since_previous': (snapshot.snapshot_date - prev_snapshot.snapshot_date).days,
-                        'composition_stability': 1.0 - (snapshot.turnover_rate or 0.0)
+                        'composition_stability': 1.0 - float(snapshot.turnover_rate or 0.0)
                     }
                 
                 timeline_data.append(snapshot_dict)
-                total_turnover += snapshot.turnover_rate or 0.0
+                total_turnover += float(snapshot.turnover_rate or 0.0)
             
             # Calculate aggregate statistics
             avg_turnover = total_turnover / len(snapshots) if snapshots else 0.0

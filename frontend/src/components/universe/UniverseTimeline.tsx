@@ -9,7 +9,8 @@ import {
   ChevronUpIcon,
   ChevronDownIcon,
   FilterIcon,
-  DownloadIcon
+  DownloadIcon,
+  BuildingIcon
 } from 'lucide-react';
 import {
   UniverseSnapshot,
@@ -37,6 +38,7 @@ const UniverseTimeline: React.FC<UniverseTimelineProps> = ({
   loading: externalLoading = false,
   error: externalError = null,
   onSnapshotSelect,
+  onAssetCompositionView,
   onDateRangeChange,
   onFrequencyChange,
   showTurnoverColumn = true,
@@ -145,17 +147,29 @@ const UniverseTimeline: React.FC<UniverseTimelineProps> = ({
                 onSnapshotSelect?.(snapshot);
               }}
               className="text-blue-600 hover:text-blue-800 p-1 rounded"
-              title="View Details"
+              title="View Snapshot Details"
             >
               <EyeIcon className="w-4 h-4" />
             </button>
+            {onAssetCompositionView && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAssetCompositionView(snapshot);
+                }}
+                className="text-green-600 hover:text-green-800 p-1 rounded"
+                title="View Asset Composition"
+              >
+                <BuildingIcon className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )
       });
     }
 
     return baseColumns;
-  }, [showTurnoverColumn, showActionsColumn, onSnapshotSelect]);
+  }, [showTurnoverColumn, showActionsColumn, onSnapshotSelect, onAssetCompositionView]);
 
   // Sorting logic
   const sortedSnapshots = useMemo(() => {

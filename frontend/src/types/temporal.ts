@@ -190,6 +190,7 @@ export interface UniverseTimelineProps {
   loading?: boolean;
   error?: string;
   onSnapshotSelect?: (snapshot: UniverseSnapshot) => void;
+  onAssetCompositionView?: (snapshot: UniverseSnapshot) => void;
   onDateRangeChange?: (range: DateRange) => void;
   onFrequencyChange?: (frequency: string) => void;
   showTurnoverColumn?: boolean;

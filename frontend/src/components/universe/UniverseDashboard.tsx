@@ -33,7 +33,7 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
   // Enhanced temporal mode state
   const [temporalMode, setTemporalMode] = useState(defaultTemporalMode ?? false);
   const [selectedUniverseForTemporal, setSelectedUniverseForTemporal] = useState<Universe | null>(null);
-  const [temporalView, setTemporalView] = useState<'timeline' | 'evolution' | 'analysis' | null>(null);
+  const [temporalView, setTemporalView] = useState<'timeline' | 'table' | 'simple-table' | 'evolution' | 'analysis' | 'assets' | null>(null);
   const [temporalPanelLayout, setTemporalPanelLayout] = useState<'overlay' | 'sidebar' | 'modal'>('overlay');
   
   // Legacy state for backward compatibility
@@ -202,7 +202,7 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
     }
   }, [temporalMode, handleTemporalModeToggle]);
 
-  const handleTemporalViewChange = useCallback((view: 'timeline' | 'evolution' | 'analysis' | null) => {
+  const handleTemporalViewChange = useCallback((view: 'timeline' | 'table' | 'simple-table' | 'evolution' | 'analysis' | 'assets' | null) => {
     setTemporalView(view);
   }, []);
 
@@ -365,8 +365,11 @@ const UniverseDashboard: React.FC<UniverseDashboardProps> = ({
                     {selectedUniverseForTemporal ? (
                       `Exploring ${selectedUniverseForTemporal.name}'s evolution over time with ${
                         temporalView === 'timeline' ? 'timeline view' :
+                        temporalView === 'table' ? 'grid table view' :
+                        temporalView === 'simple-table' ? 'simple table view' :
                         temporalView === 'evolution' ? 'evolution charts' :
-                        temporalView === 'analysis' ? 'turnover analysis' : 'detailed insights'
+                        temporalView === 'analysis' ? 'turnover analysis' :
+                        temporalView === 'assets' ? 'asset composition view' : 'detailed insights'
                       }.`
                     ) : (
                       'Select a universe to analyze historical snapshots, turnover patterns, and temporal trends.'
