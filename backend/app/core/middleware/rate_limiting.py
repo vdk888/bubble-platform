@@ -70,6 +70,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.rate_limit_config = {
             "/api/v1/auth/login": {"limit": 10, "window": 60, "identifier": "ip"},
             "/api/v1/auth/register": {"limit": 5, "window": 300, "identifier": "ip"},
+            "/api/v1/auth/me": {"limit": 5, "window": 60, "identifier": "ip"},  # Protected auth endpoints use IP-based limiting
+            "/api/v1/auth/refresh": {"limit": 20, "window": 60, "identifier": "ip"},
+            "/api/v1/auth/logout": {"limit": 10, "window": 60, "identifier": "ip"},
             "/api/v1/universes/timeline": {"limit": 60, "window": 60, "identifier": "user"},
             "/api/v1/universes/backfill": {"limit": 10, "window": 60, "identifier": "user"},
             "/api/v1/universes/snapshots": {"limit": 50, "window": 60, "identifier": "user"},
@@ -276,10 +279,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 
                 return response
             
-            # Increment counter for successful requests
+            # Increment counter for allowed requests
             await self.rate_limiter.increment_counter(identifier, endpoint_key)
             
-            # Process request
+            # Process request (rate limit passed)
             response = await call_next(request)
             
             # Add rate limiting headers to successful responses

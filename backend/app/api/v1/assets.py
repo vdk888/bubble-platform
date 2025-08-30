@@ -11,7 +11,7 @@ from pydantic import BaseModel
 # Note: Rate limiting now handled by middleware instead of slowapi decorators
 
 from ...core.database import get_db
-from ..v1.auth import get_current_user
+from ...core.dependencies import get_current_user
 from ...models.user import User
 from ...services.asset_validation_service import AssetValidationService
 from ...services.interfaces.base import ServiceResult

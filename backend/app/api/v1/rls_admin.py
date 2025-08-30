@@ -9,8 +9,8 @@ from typing import Dict, Any
 
 from ...core.database import get_db
 from ...core.rls_policies import RLSManager
+from ...core.dependencies import get_current_user
 from ...models.user import User, UserRole
-from ..v1.auth import get_current_user
 
 router = APIRouter()
 

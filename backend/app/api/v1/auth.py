@@ -11,15 +11,13 @@ import re
 
 from ...core.database import get_db
 from ...core.security import auth_service, TokenResponse, PasswordStrength
-# Rate limiting now handled by enterprise middleware
+from ...core.dependencies import get_current_user, check_rate_limit
+# Rate limiting now handled by enterprise middleware and dependencies
 from ...models.user import User, UserRole, SubscriptionTier
 
 # Set up logging for audit trail
 logging.basicConfig(level=logging.INFO)
 audit_logger = logging.getLogger("auth_audit")
-
-# Security scheme
-security = HTTPBearer()
 
 router = APIRouter()
 
@@ -82,47 +80,13 @@ class ErrorResponse(BaseModel):
     message: str
 
 
-# Dependency for getting current user
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-) -> User:
-    """
-    Dependency to get current authenticated user
-    Validates JWT token and returns user object
-    """
-    token = credentials.credentials
-    token_data = auth_service.verify_token(token)
-    
-    if token_data is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    user = db.query(User).filter(User.id == token_data.user_id).first()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Inactive user account",
-        )
-    
-    return user
-
 
 # Authentication endpoints
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(
     user_data: UserRegistration,
     request: Request,
+    _: None = Depends(check_rate_limit),  # Rate limiting first
     db: Session = Depends(get_db)
 ):
     """
@@ -203,6 +167,7 @@ async def register_user(
 async def login_user(
     login_data: UserLogin,
     request: Request,
+    _: None = Depends(check_rate_limit),  # Rate limiting first
     db: Session = Depends(get_db)
 ):
     """
@@ -275,6 +240,7 @@ async def login_user(
 async def refresh_token(
     refresh_request: RefreshTokenRequest,
     request: Request,
+    _: None = Depends(check_rate_limit),  # Rate limiting first
     db: Session = Depends(get_db)
 ):
     """

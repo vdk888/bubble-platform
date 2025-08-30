@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from ...core.database import get_db
-from ..v1.auth import get_current_user
+from ...core.dependencies import get_current_user
 from ...models.user import User
 from ...services.universe_service import UniverseService
 from ...services.temporal_universe_service import TemporalUniverseService

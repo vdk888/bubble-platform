@@ -6,6 +6,7 @@ This will help understand the current behavior and determine if there's actually
 
 import requests
 import time
+import os
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -13,6 +14,9 @@ def test_middleware_order():
     """Test current middleware order and behavior."""
     
     print("=== Testing Middleware Order ===")
+    
+    # Enable rate limiting for this test
+    os.environ["ENVIRONMENT"] = "testing_with_rate_limits"
     
     with TestClient(app) as client:
         print(f"1. Testing unauthenticated requests to /api/v1/auth/register")
@@ -27,7 +31,7 @@ def test_middleware_order():
                 "/api/v1/auth/register",
                 json={
                     "email": f"test{i}@example.com",
-                    "password": "SecurePassword123!@#",
+                    "password": "SuperSecure2025Password!@#$%",  # Use a password that will pass validation
                     "full_name": "Test User"
                 }
             )

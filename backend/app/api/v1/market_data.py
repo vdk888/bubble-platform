@@ -16,7 +16,7 @@ from typing import List, Dict, Any, Optional
 from datetime import date, datetime
 from pydantic import BaseModel, Field
 
-from .auth import get_current_user
+from ...core.dependencies import get_current_user
 from ...models.user import User
 from ...services.market_data_service import MarketDataService
 from ...core.config import settings
