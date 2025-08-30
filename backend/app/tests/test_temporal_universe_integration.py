@@ -358,7 +358,7 @@ class TestTemporalUniverseIntegration:
         
         # Should return composition closest to historical date (snapshot 1)
         assert composition_data["success"] is True
-        composition_assets = [asset["symbol"] for asset in composition_data["data"]["assets"]]
+        composition_assets = [asset["symbol"] for asset in composition_data["data"]["composition"]["assets"]]
         
         # Should show original composition (AAPL, MSFT), not evolved composition
         assert "AAPL" in composition_assets
@@ -499,7 +499,8 @@ class TestTemporalUniverseIntegration:
         assert paginated_response.status_code == 200
         assert pagination_time_ms < 200, f"Pagination took {pagination_time_ms}ms, exceeds 200ms SLA"
 
-    def test_temporal_data_accuracy_integration(self, authenticated_temporal_client, db_session: Session):
+    @pytest.mark.asyncio
+    async def test_temporal_data_accuracy_integration(self, authenticated_temporal_client, db_session: Session):
         """Test temporal data accuracy with real calculations and edge cases"""
         client, test_env = authenticated_temporal_client
         universe = test_env["universe"]
@@ -585,10 +586,25 @@ class TestTemporalUniverseIntegration:
         db_session.add(snapshot_3)
         db_session.commit()
         
+        # Clear temporal cache to ensure fresh data is retrieved
+        # The cache might have stale data from the first timeline request
+        from app.services.universe_service import get_universe_service
+        from app.core.database import get_db
+        
+        db_gen = get_db()
+        db = next(db_gen)
+        try:
+            universe_service = get_universe_service(db)
+            # Invalidate cache for this universe
+            await universe_service.temporal_cache.invalidate_universe_cache(universe.id)
+        finally:
+            db_gen.close()
+        
         # Verify partial overlap calculation
         updated_timeline = client.get(f"/api/v1/universes/{universe.id}/timeline")
         updated_data = updated_timeline.json()
         
+        # Find the third snapshot for validation
         partial_overlap_snapshot = next(
             s for s in updated_data["data"] if s["snapshot_date"] == date_3.isoformat()
         )

@@ -9,6 +9,7 @@ from .models.base import Base
 from .core.database import engine
 # Enterprise middleware imports (conditionally enabled)
 from .core.middleware.rate_limiting import RateLimitMiddleware, TESTING_CONFIG
+from .core.middleware.input_validation import InputValidationMiddleware, TESTING_CONFIG as INPUT_TESTING_CONFIG
 from .api.v1 import health, features, auth, rls_admin, universes, assets, market_data
 
 @asynccontextmanager
@@ -93,6 +94,15 @@ app.add_middleware(
     enable_rate_limiting=False,  # Will be enabled dynamically based on environment
     exempt_paths=["/health", "/health/ready", "/docs", "/openapi.json", "/redoc"]
 )
+
+# Add input validation middleware for XSS and SQL injection prevention
+# TEMPORARILY DISABLED: Middleware causing test timeouts - implementing endpoint-level sanitization
+# app.add_middleware(
+#     InputValidationMiddleware,
+#     input_validator=None,  # Use default EnterpriseInputValidator
+#     enable_validation=True,  # Always enable for security validation
+#     exempt_paths=["/health", "/health/ready", "/docs", "/openapi.json", "/redoc"]
+# )
 
 # CORS middleware
 app.add_middleware(

@@ -306,6 +306,30 @@ class EnterpriseInputValidator(IInputValidator):
             risk_score=risk_score
         )
     
+    def _sanitize_sql_injection(self, text: str) -> str:
+        """
+        Sanitize SQL injection patterns from text.
+        
+        Args:
+            text: Input text to sanitize
+            
+        Returns:
+            Text with SQL injection patterns removed/escaped
+        """
+        if not isinstance(text, str):
+            return str(text)
+        
+        # Check if text contains SQL injection patterns
+        if self._detect_sql_injection(text):
+            # For security, completely remove dangerous SQL patterns
+            sanitized = text
+            for pattern in self.sql_injection_patterns:
+                # Remove the dangerous patterns completely
+                sanitized = re.sub(pattern, "[REMOVED_SQL_PATTERN]", sanitized, flags=re.IGNORECASE)
+            return sanitized
+        
+        return text
+
     async def sanitize_user_input(
         self,
         input_data: Any,
@@ -324,7 +348,9 @@ class EnterpriseInputValidator(IInputValidator):
         if isinstance(input_data, str):
             # Apply context-specific sanitization
             if context == "html":
-                return self._sanitize_html(input_data)
+                # For HTML context, apply both HTML and SQL sanitization
+                html_sanitized = self._sanitize_html(input_data)
+                return self._sanitize_sql_injection(html_sanitized)
             elif context == "sql":
                 # Escape single quotes and other SQL metacharacters
                 return input_data.replace("'", "''").replace(";", "\\;")
@@ -336,8 +362,9 @@ class EnterpriseInputValidator(IInputValidator):
                 except json.JSONDecodeError:
                     return html.escape(input_data)
             else:
-                # General sanitization
-                return self._sanitize_html(input_data)
+                # General sanitization - apply both HTML and SQL
+                html_sanitized = self._sanitize_html(input_data)
+                return self._sanitize_sql_injection(html_sanitized)
         
         elif isinstance(input_data, dict):
             # Recursively sanitize dictionary values

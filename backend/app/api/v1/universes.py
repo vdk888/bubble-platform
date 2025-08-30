@@ -14,6 +14,7 @@ from ...models.user import User
 from ...services.universe_service import UniverseService
 from ...services.temporal_universe_service import TemporalUniverseService
 from ...services.interfaces.base import ServiceResult
+from ...services.implementations.input_validator import EnterpriseInputValidator
 
 router = APIRouter()
 
@@ -803,7 +804,7 @@ async def get_universe_timeline(
             "frequency": frequency,
             "total_snapshots": len(snapshot_responses),
             "date_range": timeline_data.get("date_range", {}),
-            "turnover_stats": timeline_data.get("turnover_analysis", {})
+            "turnover_stats": timeline_data.get("period_analysis", {})
         }
     )
 
@@ -821,6 +822,22 @@ async def get_universe_snapshots(
     Returns complete snapshot history for analysis and debugging.
     Useful for understanding universe evolution patterns and data quality.
     """
+    # DoS Protection: Enforce maximum pagination limits
+    MAX_LIMIT = 1000  # Maximum snapshots per request
+    MAX_OFFSET = 50000  # Maximum offset to prevent deep pagination attacks
+    
+    if limit is not None and limit > MAX_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Limit too large. Maximum allowed: {MAX_LIMIT}, requested: {limit}"
+        )
+    
+    if offset is not None and offset > MAX_OFFSET:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Offset too large. Maximum allowed: {MAX_OFFSET}, requested: {offset}"
+        )
+    
     # Verify universe ownership
     get_result = await universe_service.get_universe_by_id(universe_id)
     
@@ -984,6 +1001,17 @@ async def create_universe_snapshot(
             detail="Access denied: Universe belongs to another user"
         )
     
+    # Sanitize input data to prevent XSS and SQL injection
+    input_validator = EnterpriseInputValidator()
+    
+    # Sanitize screening_criteria if provided
+    sanitized_criteria = None
+    if snapshot_data.screening_criteria:
+        sanitized_criteria = await input_validator.sanitize_user_input(
+            snapshot_data.screening_criteria,
+            context="html"
+        )
+    
     # Parse snapshot date if provided
     snapshot_date = None
     if snapshot_data.snapshot_date:
@@ -1000,7 +1028,7 @@ async def create_universe_snapshot(
     result = await universe_service.create_universe_snapshot(
         universe_id=universe_id,
         snapshot_date=snapshot_date,
-        screening_criteria=snapshot_data.screening_criteria,
+        screening_criteria=sanitized_criteria,
         user_id=current_user.id
     )
     
@@ -1261,6 +1289,43 @@ async def backfill_universe_history(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid frequency. Must be one of: {', '.join(valid_frequencies)}"
+        )
+    
+    # DoS Protection: Validate date range to prevent resource exhaustion
+    date_range_days = (end_date - start_date).days
+    
+    # Set maximum allowed periods per frequency to prevent DoS attacks
+    max_periods_by_frequency = {
+        "daily": 730,      # Max 2 years of daily data
+        "weekly": 260,     # Max 5 years of weekly data  
+        "monthly": 120,    # Max 10 years of monthly data
+        "quarterly": 40    # Max 10 years of quarterly data
+    }
+    
+    # Calculate approximate number of periods that would be generated
+    frequency_to_days = {
+        "daily": 1,
+        "weekly": 7, 
+        "monthly": 30,
+        "quarterly": 90
+    }
+    
+    approximate_periods = date_range_days // frequency_to_days[backfill_data.frequency]
+    max_allowed = max_periods_by_frequency[backfill_data.frequency]
+    
+    if approximate_periods > max_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Backfill request too large. Requested ~{approximate_periods} {backfill_data.frequency} periods, max allowed: {max_allowed}. Please reduce date range or use a lower frequency."
+        )
+    
+    # Additional DoS protection: Prevent extremely old start dates
+    from datetime import date
+    min_allowed_date = date(2000, 1, 1)  # No data before year 2000
+    if start_date < min_allowed_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Start date cannot be before {min_allowed_date.isoformat()}. Historical data not available."
         )
     
     # Generate historical snapshots using existing service method

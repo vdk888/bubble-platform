@@ -85,6 +85,7 @@ services:
       - CLAUDE_API_KEY=test-claude-key-for-testing
       - ALPACA_API_KEY=test-alpaca-key-for-testing
       - ALPACA_SECRET_KEY=test-alpaca-secret-for-testing
+      - PYTHONPATH=/app
     depends_on:
       test_db:
         condition: service_healthy
@@ -92,7 +93,7 @@ services:
         condition: service_started
     volumes:
       - ./backend:/app
-    command: python -m pytest app/tests/ -v --tb=short
+    command: bash -c "cd /app && python -m pytest app/tests/ -v --tb=short"
     profiles:
       - test
 

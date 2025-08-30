@@ -1805,6 +1805,7 @@ class UniverseService:
                             "end_date": end_date.isoformat(),
                             "snapshot_count": 0,
                             "average_turnover": 0.0,
+                            "max_turnover": 0.0,
                             "average_asset_count": 0,
                             "total_days": (end_date - start_date).days,
                             "evolution_stability": 1.0
@@ -1843,6 +1844,7 @@ class UniverseService:
             
             # Calculate aggregate statistics
             avg_turnover = total_turnover / len(snapshots) if snapshots else 0.0
+            max_turnover = max((float(s.turnover_rate or 0.0) for s in snapshots), default=0.0)
             avg_asset_count = sum(len(s.assets) for s in snapshots) / len(snapshots)
             
             # Prepare data for response and caching
@@ -1858,6 +1860,7 @@ class UniverseService:
                     "end_date": end_date.isoformat(),
                     "snapshot_count": len(snapshots),
                     "average_turnover": avg_turnover,
+                    "max_turnover": max_turnover,
                     "average_asset_count": avg_asset_count,
                     "total_days": (end_date - start_date).days,
                     "evolution_stability": 1.0 - avg_turnover

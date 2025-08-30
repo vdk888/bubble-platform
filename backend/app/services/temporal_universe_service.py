@@ -8,6 +8,7 @@ comprehensive turnover analysis.
 Complements UniverseService with specialized temporal functionality.
 """
 import uuid
+import calendar
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
@@ -674,19 +675,38 @@ class TemporalUniverseService:
             elif config.frequency == 'weekly':
                 current_date += timedelta(weeks=1)
             elif config.frequency == 'monthly':
-                # Move to next month
+                # Move to next month, handling month-end dates properly
                 if current_date.month == 12:
-                    current_date = current_date.replace(year=current_date.year + 1, month=1)
+                    next_year = current_date.year + 1
+                    next_month = 1
                 else:
-                    current_date = current_date.replace(month=current_date.month + 1)
+                    next_year = current_date.year
+                    next_month = current_date.month + 1
+                
+                # Handle cases where the day doesn't exist in the next month
+                # (e.g., January 31 -> February 31 doesn't exist)
+                try:
+                    current_date = current_date.replace(year=next_year, month=next_month)
+                except ValueError:
+                    # If the day doesn't exist in the next month, use the last day of that month
+                    last_day = calendar.monthrange(next_year, next_month)[1]
+                    current_date = current_date.replace(year=next_year, month=next_month, day=last_day)
+                    
             elif config.frequency == 'quarterly':
-                # Move to next quarter
+                # Move to next quarter, handling month-end dates properly
                 new_month = current_date.month + 3
                 new_year = current_date.year
                 if new_month > 12:
                     new_month -= 12
                     new_year += 1
-                current_date = current_date.replace(year=new_year, month=new_month)
+                
+                # Handle cases where the day doesn't exist in the target month
+                try:
+                    current_date = current_date.replace(year=new_year, month=new_month)
+                except ValueError:
+                    # If the day doesn't exist in the target month, use the last day of that month
+                    last_day = calendar.monthrange(new_year, new_month)[1]
+                    current_date = current_date.replace(year=new_year, month=new_month, day=last_day)
             else:
                 break  # Unknown frequency
         

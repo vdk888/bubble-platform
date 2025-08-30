@@ -66,7 +66,7 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                 "context": "html",
                 "business_rules": "backfill_universe"
             },
-            "/api/v1/universes/snapshots": {
+            "/snapshots": {
                 "schema": "snapshot_request",
                 "context": "html", 
                 "business_rules": "create_snapshot"
