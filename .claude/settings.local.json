@@ -21,7 +21,8 @@
       "Read(/C:\\c\\Users\\Warren\\Documents/**)",
       "Read(/C:\\c\\Users\\Warren\\Documents/**)",
       "Read(/C:\\c\\Users\\Warren\\Documents/**)",
-      "Read(/C:\\c\\Users\\Warren\\Documents/**)"
+      "Read(/C:\\c\\Users\\Warren\\Documents/**)",
+      "Bash(pip install:*)"
     ]
   },
   "enableAllProjectMcpServers": false,
