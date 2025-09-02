@@ -22,7 +22,8 @@
       "Read(/C:\\c\\Users\\Warren\\Documents/**)",
       "Read(/C:\\c\\Users\\Warren\\Documents/**)",
       "Read(/C:\\c\\Users\\Warren\\Documents/**)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(timeout:*)"
     ]
   },
   "enableAllProjectMcpServers": false,

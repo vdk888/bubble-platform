@@ -10,7 +10,7 @@ from .core.database import engine
 # Enterprise middleware imports (conditionally enabled)
 from .core.middleware.rate_limiting import RateLimitMiddleware, TESTING_CONFIG
 from .core.middleware.input_validation import InputValidationMiddleware, TESTING_CONFIG as INPUT_TESTING_CONFIG
-from .api.v1 import health, features, auth, rls_admin, universes, assets, market_data
+from .api.v1 import health, features, auth, rls_admin, universes, assets, market_data, indicators, signals
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -123,6 +123,8 @@ app.include_router(rls_admin.router, prefix="/api/v1/admin/rls", tags=["RLS Admi
 app.include_router(universes.router, prefix="/api/v1/universes", tags=["Universe Management"])
 app.include_router(assets.router, prefix="/api/v1/assets", tags=["Asset Management"])
 app.include_router(market_data.router, tags=["Market Data - Triple Provider"])
+app.include_router(indicators.router, prefix="/api/v1/indicators", tags=["Technical Indicators"])
+app.include_router(signals.router, prefix="/api/v1/signals", tags=["Signal Generation"])
 
 @app.get("/", tags=["Root"])
 async def root():
@@ -144,7 +146,7 @@ async def root():
             "features_url": "/api/v1/features"
         },
         "message": "Welcome to Bubble Platform - AI-Native Investment Strategy Automation",
-        "next_actions": ["view_docs", "check_health", "register_user", "login_user", "create_universe", "search_assets", "validate_symbols"]
+        "next_actions": ["view_docs", "check_health", "register_user", "login_user", "create_universe", "search_assets", "validate_symbols", "calculate_indicators", "generate_signals"]
     }
 
 if __name__ == "__main__":
