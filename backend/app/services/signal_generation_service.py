@@ -41,7 +41,7 @@ class SignalGenerationService(ISignalService):
     def __init__(self, db: Session, tenant_id: str):
         self.db = db
         self.tenant_id = tenant_id
-        self.indicator_service = TechnicalIndicatorService(db, tenant_id)
+        self.indicator_service = TechnicalIndicatorService()
         
         # Default signal generation settings
         self.default_weights = {

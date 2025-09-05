@@ -131,10 +131,7 @@ class TestDataAlignment:
     @pytest_asyncio.fixture
     async def indicators_service_with_real_data(self, realistic_market_data):
         """Create indicators service with realistic market data"""
-        mock_db = MagicMock()
-        tenant_id = "test_tenant"
-        
-        service = TechnicalIndicatorService(mock_db, tenant_id)
+        service = TechnicalIndicatorService()
         
         # Mock the data provider to return our realistic test data
         async def mock_get_price_data(symbols, start_date=None, end_date=None):
@@ -163,6 +160,7 @@ class TestDataAlignment:
         
         return service
 
+    @pytest.mark.asyncio
     @pytest.mark.data_alignment
     async def test_price_data_indicator_timestamp_alignment(self, indicators_service_with_real_data):
         """Test that indicator timestamps perfectly align with price data timestamps"""
@@ -188,12 +186,24 @@ class TestDataAlignment:
         latest_price_timestamp = max(original_timestamps)
         assert result.timestamp is not None
         
+        # Ensure both timestamps are timezone-aware for comparison
+        if hasattr(result.timestamp, 'tz') and result.timestamp.tz is None:
+            result_ts = result.timestamp.replace(tzinfo=timezone.utc)
+        else:
+            result_ts = result.timestamp
+            
+        if hasattr(latest_price_timestamp, 'tz') and latest_price_timestamp.tz is None:
+            price_ts = latest_price_timestamp.replace(tzinfo=timezone.utc)
+        else:
+            price_ts = latest_price_timestamp
+        
         # Allow small time differences due to processing
-        time_diff = abs((result.timestamp - latest_price_timestamp).total_seconds())
+        time_diff = abs((result_ts - price_ts).total_seconds())
         assert time_diff < 60, f"Timestamp alignment failed: {time_diff}s difference"
         
         logger.info(f"✅ Timestamp alignment verified: {time_diff:.2f}s difference")
 
+    @pytest.mark.asyncio
     @pytest.mark.data_alignment
     async def test_indicator_value_ranges_and_validity(self, indicators_service_with_real_data):
         """Test that all indicator values are within expected ranges and mathematically valid"""
@@ -254,6 +264,7 @@ class TestDataAlignment:
             # Momentum should be reasonable (-50% to +50% for most cases)
             assert -0.5 <= result.current_value <= 0.5, f"Unrealistic momentum for {symbol}: {result.current_value}"
 
+    @pytest.mark.asyncio
     @pytest.mark.data_alignment
     async def test_consistent_calculation_across_calls(self, indicators_service_with_real_data):
         """Test that repeated calls with same parameters return identical results"""
@@ -279,6 +290,7 @@ class TestDataAlignment:
         
         logger.info("✅ Calculation consistency verified")
 
+    @pytest.mark.asyncio
     @pytest.mark.data_alignment
     async def test_data_sufficiency_validation(self, indicators_service_with_real_data):
         """Test that service properly validates data sufficiency for calculations"""
@@ -308,13 +320,55 @@ class TestRealUserScenarios:
     """Test complete real user scenarios from data to signals"""
     
     @pytest_asyncio.fixture
+    async def realistic_market_data(self):
+        """Create realistic market data with 60 days of history"""
+        symbols = ['AAPL', 'GOOGL', 'MSFT']
+        market_data = {}
+        
+        # Generate 60 days of realistic OHLCV data
+        for symbol in symbols:
+            dates = pd.date_range(end='2024-02-29', periods=60, freq='D')
+            
+            # Base prices for each symbol
+            base_prices = {
+                'AAPL': 180.0,
+                'GOOGL': 140.0,
+                'MSFT': 400.0
+            }
+            
+            # Generate realistic price movements
+            np.random.seed(hash(symbol) % 2**32)
+            base_price = base_prices[symbol]
+            returns = np.random.randn(60) * 0.02  # 2% daily volatility
+            prices = base_price * np.exp(np.cumsum(returns))
+            
+            df = pd.DataFrame({
+                'timestamp': dates,
+                'open': prices * (1 + np.random.randn(60) * 0.005),
+                'high': prices * (1 + np.abs(np.random.randn(60)) * 0.01),
+                'low': prices * (1 - np.abs(np.random.randn(60)) * 0.01),
+                'close': prices,
+                'volume': np.random.randint(10000000, 50000000, 60)
+            })
+            
+            # Ensure OHLC relationships are valid
+            for i in range(len(df)):
+                o, h, l, c = df.iloc[i][['open', 'high', 'low', 'close']]
+                df.iloc[i, df.columns.get_loc('high')] = max(o, h, l, c)
+                df.iloc[i, df.columns.get_loc('low')] = min(o, h, l, c)
+        
+            market_data[symbol] = df
+        
+        return market_data
+    
+    @pytest_asyncio.fixture
     async def full_service_stack(self, realistic_market_data):
         """Create full service stack for end-to-end testing"""
         mock_db = MagicMock()
         tenant_id = "user_123"
         
         # Initialize both services
-        indicator_service = TechnicalIndicatorService(mock_db, tenant_id)
+        indicator_service = TechnicalIndicatorService()
         signal_service = SignalGenerationService(mock_db, tenant_id)
         
         # Mock data provider
@@ -337,6 +391,7 @@ class TestRealUserScenarios:
             'market_data': realistic_market_data
         }
 
+    @pytest.mark.asyncio
     @pytest.mark.real_user_scenarios
     async def test_portfolio_screening_workflow(self, full_service_stack):
         """Test: User creates portfolio, calculates all indicators, generates composite signals"""
@@ -433,6 +488,7 @@ class TestRealUserScenarios:
         
         logger.info("✅ Portfolio screening workflow completed successfully")
 
+    @pytest.mark.asyncio
     @pytest.mark.real_user_scenarios
     async def test_daily_monitoring_scenario(self, full_service_stack):
         """Test: User monitors daily signals for position management"""
@@ -486,6 +542,7 @@ class TestRealUserScenarios:
         
         logger.info("✅ Daily monitoring scenario completed")
 
+    @pytest.mark.asyncio
     @pytest.mark.real_user_scenarios
     async def test_backtesting_data_preparation(self, full_service_stack):
         """Test: User prepares historical data for backtesting strategy"""
@@ -583,6 +640,7 @@ class TestRealUserScenarios:
         
         logger.info("✅ Backtesting data preparation completed successfully")
 
+    @pytest.mark.asyncio
     @pytest.mark.real_user_scenarios
     async def test_error_handling_in_user_workflow(self, full_service_stack):
         """Test: Complete error handling in realistic user workflows"""
@@ -653,6 +711,7 @@ class TestRealUserScenarios:
         
         logger.info("✅ Error handling workflow tests completed")
 
+    @pytest.mark.asyncio
     @pytest.mark.performance
     async def test_realistic_performance_scenario(self, full_service_stack):
         """Test: Performance with realistic user portfolio sizes"""
